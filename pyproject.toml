@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "erlayout"
+version = "0.1.0"
+description = "Provably crossing-optimal layered layout of ER diagrams (CP-SAT)"
+authors = [{name = "Oreoluwa Adeleye"}]
+requires-python = ">=3.10"
+dependencies = ["ortools>=9.10", "sqlglot>=25", "numpy", "fastapi", "uvicorn", "pydantic>=2"]
+
+[project.optional-dependencies]
+test = ["pytest", "httpx"]
+
+[project.scripts]
+erlayout = "erlayout.cli:main"
+
+[tool.setuptools]
+packages = ["erlayout"]
+
+[tool.setuptools.package-data]
+erlayout = ["static/*"]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "tests"]
+testpaths = ["tests"]

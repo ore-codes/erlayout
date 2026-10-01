@@ -1,0 +1,283 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1223 2130" width="1223" height="2130" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+<rect width="100%" height="100%" fill="#fafaf8"/>
+<g transform="translate(0,0)">
+<g fill="none" stroke-width="1.6" stroke-opacity="0.85">
+<path d="M316.2,837.0 C391.2,837.0 391.2,837.0 466.2,837.0" stroke="#2f6fb3"><title>orders.customer_id -&gt; customers.customer_id</title></path>
+<path d="M316.2,863.0 C391.2,863.0 391.2,1311.0 466.2,1311.0" stroke="#b5452d"><title>orders.employee_id -&gt; employees.employee_id</title></path>
+<path d="M316.2,967.0 C391.2,967.0 391.2,1847.0 466.2,1847.0" stroke="#2e8b57"><title>orders.ship_via -&gt; shippers.shipper_id</title></path>
+<path d="M764.6,113.0 C839.6,113.0 839.6,233.0 914.6,233.0" stroke="#8a4fbf"><title>order_details.product_id -&gt; products.product_id</title></path>
+<path d="M316.2,811.0 C391.2,811.0 391.2,87.0 466.2,87.0" stroke="#c28a12"><title>order_details.order_id -&gt; orders.order_id</title></path>
+<path d="M764.6,665.0 C839.6,665.0 839.6,311.0 914.6,311.0" stroke="#1f8a99"><title>products.category_id -&gt; categories.category_id</title></path>
+<path d="M764.6,285.0 C839.6,285.0 839.6,285.0 914.6,285.0" stroke="#b33f7a"><title>products.supplier_id -&gt; suppliers.supplier_id</title></path>
+<path d="M316.2,2045.0 C391.2,2045.0 391.2,2045.0 466.2,2045.0" stroke="#5d6b2f"><title>territories.region_id -&gt; region.region_id</title></path>
+<path d="M764.6,1993.0 C839.6,1993.0 839.6,1337.0 914.6,1337.0" stroke="#6b5bd6"><title>employee_territories.territory_id -&gt; territories.territory_id</title></path>
+<path d="M764.6,1311.0 C839.6,1311.0 839.6,1311.0 914.6,1311.0" stroke="#a0522d"><title>employee_territories.employee_id -&gt; employees.employee_id</title></path>
+<path d="M764.6,1191.0 C839.6,1191.0 839.6,863.0 914.6,863.0" stroke="#2f6fb3"><title>customer_customer_demo.customer_type_id -&gt; customer_demographics.customer_type_id</title></path>
+<path d="M764.6,837.0 C839.6,837.0 839.6,837.0 914.6,837.0" stroke="#b5452d"><title>customer_customer_demo.customer_id -&gt; customers.customer_id</title></path>
+</g>
+<g><rect x="466.2" y="618.0" width="298.4" height="144.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M466.2,624.0 a6,6 0 0 1 6,-6 h286.4 a6,6 0 0 1 6,6 v28.0 h-298.4 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="615.4" y="640.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">categories</text>
+<text x="478.2" y="669.0" font-size="12.5" font-weight="600" fill="#2b2f36">category_id</text>
+<text x="752.6" y="669.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="478.2" y="695.0" font-size="12.5" font-weight="400" fill="#2b2f36">category_name</text>
+<text x="752.6" y="695.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(15)</text>
+<text x="478.2" y="721.0" font-size="12.5" font-weight="400" fill="#2b2f36">description</text>
+<text x="752.6" y="721.0" font-size="11.5" text-anchor="end" fill="#8a9099">text</text>
+<text x="478.2" y="747.0" font-size="12.5" font-weight="400" fill="#2b2f36">picture</text>
+<text x="752.6" y="747.0" font-size="11.5" text-anchor="end" fill="#8a9099">varbinary</text>
+</g>
+<g><rect x="914.6" y="790.0" width="268.8" height="92.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M914.6,796.0 a6,6 0 0 1 6,-6 h256.8 a6,6 0 0 1 6,6 v28.0 h-268.8 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="1049.0" y="812.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">customer_customer_demo</text>
+<text x="926.6" y="841.0" font-size="12.5" font-weight="600" fill="#2b2f36">customer_id</text>
+<text x="1171.4" y="841.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(5)</text>
+<text x="926.6" y="867.0" font-size="12.5" font-weight="400" fill="#2b2f36">customer_type_id</text>
+<text x="1171.4" y="867.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(5)</text>
+</g>
+<g><rect x="466.2" y="1144.0" width="298.4" height="92.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M466.2,1150.0 a6,6 0 0 1 6,-6 h286.4 a6,6 0 0 1 6,6 v28.0 h-298.4 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="615.4" y="1166.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">customer_demographics</text>
+<text x="478.2" y="1195.0" font-size="12.5" font-weight="600" fill="#2b2f36">customer_type_id</text>
+<text x="752.6" y="1195.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(5)</text>
+<text x="478.2" y="1221.0" font-size="12.5" font-weight="400" fill="#2b2f36">customer_desc</text>
+<text x="752.6" y="1221.0" font-size="11.5" text-anchor="end" fill="#8a9099">text</text>
+</g>
+<g><rect x="466.2" y="790.0" width="298.4" height="326.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M466.2,796.0 a6,6 0 0 1 6,-6 h286.4 a6,6 0 0 1 6,6 v28.0 h-298.4 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="615.4" y="812.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">customers</text>
+<text x="478.2" y="841.0" font-size="12.5" font-weight="600" fill="#2b2f36">customer_id</text>
+<text x="752.6" y="841.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(5)</text>
+<text x="478.2" y="867.0" font-size="12.5" font-weight="400" fill="#2b2f36">company_name</text>
+<text x="752.6" y="867.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(40)</text>
+<text x="478.2" y="893.0" font-size="12.5" font-weight="400" fill="#2b2f36">contact_name</text>
+<text x="752.6" y="893.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(30)</text>
+<text x="478.2" y="919.0" font-size="12.5" font-weight="400" fill="#2b2f36">contact_title</text>
+<text x="752.6" y="919.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(30)</text>
+<text x="478.2" y="945.0" font-size="12.5" font-weight="400" fill="#2b2f36">address</text>
+<text x="752.6" y="945.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(60)</text>
+<text x="478.2" y="971.0" font-size="12.5" font-weight="400" fill="#2b2f36">city</text>
+<text x="752.6" y="971.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(15)</text>
+<text x="478.2" y="997.0" font-size="12.5" font-weight="400" fill="#2b2f36">region</text>
+<text x="752.6" y="997.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(15)</text>
+<text x="478.2" y="1023.0" font-size="12.5" font-weight="400" fill="#2b2f36">postal_code</text>
+<text x="752.6" y="1023.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(10)</text>
+<text x="478.2" y="1049.0" font-size="12.5" font-weight="400" fill="#2b2f36">country</text>
+<text x="752.6" y="1049.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(15)</text>
+<text x="478.2" y="1075.0" font-size="12.5" font-weight="400" fill="#2b2f36">phone</text>
+<text x="752.6" y="1075.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(24)</text>
+<text x="478.2" y="1101.0" font-size="12.5" font-weight="400" fill="#2b2f36">fax</text>
+<text x="752.6" y="1101.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(24)</text>
+</g>
+<g><rect x="466.2" y="1264.0" width="298.4" height="508.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M466.2,1270.0 a6,6 0 0 1 6,-6 h286.4 a6,6 0 0 1 6,6 v28.0 h-298.4 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="615.4" y="1286.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">employees</text>
+<text x="478.2" y="1315.0" font-size="12.5" font-weight="600" fill="#2b2f36">employee_id</text>
+<text x="752.6" y="1315.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="478.2" y="1341.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_name</text>
+<text x="752.6" y="1341.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(20)</text>
+<text x="478.2" y="1367.0" font-size="12.5" font-weight="400" fill="#2b2f36">first_name</text>
+<text x="752.6" y="1367.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(10)</text>
+<text x="478.2" y="1393.0" font-size="12.5" font-weight="400" fill="#2b2f36">title</text>
+<text x="752.6" y="1393.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(30)</text>
+<text x="478.2" y="1419.0" font-size="12.5" font-weight="400" fill="#2b2f36">title_of_courtesy</text>
+<text x="752.6" y="1419.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(25)</text>
+<text x="478.2" y="1445.0" font-size="12.5" font-weight="400" fill="#2b2f36">birth_date</text>
+<text x="752.6" y="1445.0" font-size="11.5" text-anchor="end" fill="#8a9099">date</text>
+<text x="478.2" y="1471.0" font-size="12.5" font-weight="400" fill="#2b2f36">hire_date</text>
+<text x="752.6" y="1471.0" font-size="11.5" text-anchor="end" fill="#8a9099">date</text>
+<text x="478.2" y="1497.0" font-size="12.5" font-weight="400" fill="#2b2f36">address</text>
+<text x="752.6" y="1497.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(60)</text>
+<text x="478.2" y="1523.0" font-size="12.5" font-weight="400" fill="#2b2f36">city</text>
+<text x="752.6" y="1523.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(15)</text>
+<text x="478.2" y="1549.0" font-size="12.5" font-weight="400" fill="#2b2f36">region</text>
+<text x="752.6" y="1549.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(15)</text>
+<text x="478.2" y="1575.0" font-size="12.5" font-weight="400" fill="#2b2f36">postal_code</text>
+<text x="752.6" y="1575.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(10)</text>
+<text x="478.2" y="1601.0" font-size="12.5" font-weight="400" fill="#2b2f36">country</text>
+<text x="752.6" y="1601.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(15)</text>
+<text x="478.2" y="1627.0" font-size="12.5" font-weight="400" fill="#2b2f36">home_phone</text>
+<text x="752.6" y="1627.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(24)</text>
+<text x="478.2" y="1653.0" font-size="12.5" font-weight="400" fill="#2b2f36">extension</text>
+<text x="752.6" y="1653.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(4)</text>
+<text x="478.2" y="1679.0" font-size="12.5" font-weight="400" fill="#2b2f36">photo</text>
+<text x="752.6" y="1679.0" font-size="11.5" text-anchor="end" fill="#8a9099">varbinary</text>
+<text x="478.2" y="1705.0" font-size="12.5" font-weight="400" fill="#2b2f36">notes</text>
+<text x="752.6" y="1705.0" font-size="11.5" text-anchor="end" fill="#8a9099">text</text>
+<text x="478.2" y="1731.0" font-size="12.5" font-weight="400" fill="#2b2f36">reports_to</text>
+<text x="752.6" y="1731.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="478.2" y="1757.0" font-size="12.5" font-weight="400" fill="#2b2f36">photo_path</text>
+<text x="752.6" y="1757.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(255)</text>
+</g>
+<g><rect x="914.6" y="1264.0" width="268.8" height="92.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M914.6,1270.0 a6,6 0 0 1 6,-6 h256.8 a6,6 0 0 1 6,6 v28.0 h-268.8 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="1049.0" y="1286.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">employee_territories</text>
+<text x="926.6" y="1315.0" font-size="12.5" font-weight="600" fill="#2b2f36">employee_id</text>
+<text x="1171.4" y="1315.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="926.6" y="1341.0" font-size="12.5" font-weight="400" fill="#2b2f36">territory_id</text>
+<text x="1171.4" y="1341.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(20)</text>
+</g>
+<g><rect x="466.2" y="40.0" width="298.4" height="170.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M466.2,46.0 a6,6 0 0 1 6,-6 h286.4 a6,6 0 0 1 6,6 v28.0 h-298.4 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="615.4" y="62.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">order_details</text>
+<text x="478.2" y="91.0" font-size="12.5" font-weight="600" fill="#2b2f36">order_id</text>
+<text x="752.6" y="91.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="478.2" y="117.0" font-size="12.5" font-weight="400" fill="#2b2f36">product_id</text>
+<text x="752.6" y="117.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="478.2" y="143.0" font-size="12.5" font-weight="400" fill="#2b2f36">unit_price</text>
+<text x="752.6" y="143.0" font-size="11.5" text-anchor="end" fill="#8a9099">float</text>
+<text x="478.2" y="169.0" font-size="12.5" font-weight="400" fill="#2b2f36">quantity</text>
+<text x="752.6" y="169.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="478.2" y="195.0" font-size="12.5" font-weight="400" fill="#2b2f36">discount</text>
+<text x="752.6" y="195.0" font-size="11.5" text-anchor="end" fill="#8a9099">float</text>
+</g>
+<g><rect x="40.0" y="764.0" width="276.2" height="404.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M40.0,770.0 a6,6 0 0 1 6,-6 h264.2 a6,6 0 0 1 6,6 v28.0 h-276.2 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="178.1" y="786.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">orders</text>
+<text x="52.0" y="815.0" font-size="12.5" font-weight="600" fill="#2b2f36">order_id</text>
+<text x="304.2" y="815.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="52.0" y="841.0" font-size="12.5" font-weight="400" fill="#2b2f36">customer_id</text>
+<text x="304.2" y="841.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(5)</text>
+<text x="52.0" y="867.0" font-size="12.5" font-weight="400" fill="#2b2f36">employee_id</text>
+<text x="304.2" y="867.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="52.0" y="893.0" font-size="12.5" font-weight="400" fill="#2b2f36">order_date</text>
+<text x="304.2" y="893.0" font-size="11.5" text-anchor="end" fill="#8a9099">date</text>
+<text x="52.0" y="919.0" font-size="12.5" font-weight="400" fill="#2b2f36">required_date</text>
+<text x="304.2" y="919.0" font-size="11.5" text-anchor="end" fill="#8a9099">date</text>
+<text x="52.0" y="945.0" font-size="12.5" font-weight="400" fill="#2b2f36">shipped_date</text>
+<text x="304.2" y="945.0" font-size="11.5" text-anchor="end" fill="#8a9099">date</text>
+<text x="52.0" y="971.0" font-size="12.5" font-weight="400" fill="#2b2f36">ship_via</text>
+<text x="304.2" y="971.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="52.0" y="997.0" font-size="12.5" font-weight="400" fill="#2b2f36">freight</text>
+<text x="304.2" y="997.0" font-size="11.5" text-anchor="end" fill="#8a9099">float</text>
+<text x="52.0" y="1023.0" font-size="12.5" font-weight="400" fill="#2b2f36">ship_name</text>
+<text x="304.2" y="1023.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(40)</text>
+<text x="52.0" y="1049.0" font-size="12.5" font-weight="400" fill="#2b2f36">ship_address</text>
+<text x="304.2" y="1049.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(60)</text>
+<text x="52.0" y="1075.0" font-size="12.5" font-weight="400" fill="#2b2f36">ship_city</text>
+<text x="304.2" y="1075.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(15)</text>
+<text x="52.0" y="1101.0" font-size="12.5" font-weight="400" fill="#2b2f36">ship_region</text>
+<text x="304.2" y="1101.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(15)</text>
+<text x="52.0" y="1127.0" font-size="12.5" font-weight="400" fill="#2b2f36">ship_postal_code</text>
+<text x="304.2" y="1127.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(10)</text>
+<text x="52.0" y="1153.0" font-size="12.5" font-weight="400" fill="#2b2f36">ship_country</text>
+<text x="304.2" y="1153.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(15)</text>
+</g>
+<g><rect x="914.6" y="186.0" width="268.8" height="300.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M914.6,192.0 a6,6 0 0 1 6,-6 h256.8 a6,6 0 0 1 6,6 v28.0 h-268.8 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="1049.0" y="208.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">products</text>
+<text x="926.6" y="237.0" font-size="12.5" font-weight="600" fill="#2b2f36">product_id</text>
+<text x="1171.4" y="237.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="926.6" y="263.0" font-size="12.5" font-weight="400" fill="#2b2f36">product_name</text>
+<text x="1171.4" y="263.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(40)</text>
+<text x="926.6" y="289.0" font-size="12.5" font-weight="400" fill="#2b2f36">supplier_id</text>
+<text x="1171.4" y="289.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="926.6" y="315.0" font-size="12.5" font-weight="400" fill="#2b2f36">category_id</text>
+<text x="1171.4" y="315.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="926.6" y="341.0" font-size="12.5" font-weight="400" fill="#2b2f36">quantity_per_unit</text>
+<text x="1171.4" y="341.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(20)</text>
+<text x="926.6" y="367.0" font-size="12.5" font-weight="400" fill="#2b2f36">unit_price</text>
+<text x="1171.4" y="367.0" font-size="11.5" text-anchor="end" fill="#8a9099">float</text>
+<text x="926.6" y="393.0" font-size="12.5" font-weight="400" fill="#2b2f36">units_in_stock</text>
+<text x="1171.4" y="393.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="926.6" y="419.0" font-size="12.5" font-weight="400" fill="#2b2f36">units_on_order</text>
+<text x="1171.4" y="419.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="926.6" y="445.0" font-size="12.5" font-weight="400" fill="#2b2f36">reorder_level</text>
+<text x="1171.4" y="445.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="926.6" y="471.0" font-size="12.5" font-weight="400" fill="#2b2f36">discontinued</text>
+<text x="1171.4" y="471.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+</g>
+<g><rect x="40.0" y="1998.0" width="276.2" height="92.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M40.0,2004.0 a6,6 0 0 1 6,-6 h264.2 a6,6 0 0 1 6,6 v28.0 h-276.2 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="178.1" y="2020.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">region</text>
+<text x="52.0" y="2049.0" font-size="12.5" font-weight="600" fill="#2b2f36">region_id</text>
+<text x="304.2" y="2049.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="52.0" y="2075.0" font-size="12.5" font-weight="400" fill="#2b2f36">region_description</text>
+<text x="304.2" y="2075.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(60)</text>
+</g>
+<g><rect x="466.2" y="1800.0" width="298.4" height="118.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M466.2,1806.0 a6,6 0 0 1 6,-6 h286.4 a6,6 0 0 1 6,6 v28.0 h-298.4 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="615.4" y="1822.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">shippers</text>
+<text x="478.2" y="1851.0" font-size="12.5" font-weight="600" fill="#2b2f36">shipper_id</text>
+<text x="752.6" y="1851.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="478.2" y="1877.0" font-size="12.5" font-weight="400" fill="#2b2f36">company_name</text>
+<text x="752.6" y="1877.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(40)</text>
+<text x="478.2" y="1903.0" font-size="12.5" font-weight="400" fill="#2b2f36">phone</text>
+<text x="752.6" y="1903.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(24)</text>
+</g>
+<g><rect x="466.2" y="238.0" width="298.4" height="352.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M466.2,244.0 a6,6 0 0 1 6,-6 h286.4 a6,6 0 0 1 6,6 v28.0 h-298.4 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="615.4" y="260.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">suppliers</text>
+<text x="478.2" y="289.0" font-size="12.5" font-weight="600" fill="#2b2f36">supplier_id</text>
+<text x="752.6" y="289.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="478.2" y="315.0" font-size="12.5" font-weight="400" fill="#2b2f36">company_name</text>
+<text x="752.6" y="315.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(40)</text>
+<text x="478.2" y="341.0" font-size="12.5" font-weight="400" fill="#2b2f36">contact_name</text>
+<text x="752.6" y="341.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(30)</text>
+<text x="478.2" y="367.0" font-size="12.5" font-weight="400" fill="#2b2f36">contact_title</text>
+<text x="752.6" y="367.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(30)</text>
+<text x="478.2" y="393.0" font-size="12.5" font-weight="400" fill="#2b2f36">address</text>
+<text x="752.6" y="393.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(60)</text>
+<text x="478.2" y="419.0" font-size="12.5" font-weight="400" fill="#2b2f36">city</text>
+<text x="752.6" y="419.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(15)</text>
+<text x="478.2" y="445.0" font-size="12.5" font-weight="400" fill="#2b2f36">region</text>
+<text x="752.6" y="445.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(15)</text>
+<text x="478.2" y="471.0" font-size="12.5" font-weight="400" fill="#2b2f36">postal_code</text>
+<text x="752.6" y="471.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(10)</text>
+<text x="478.2" y="497.0" font-size="12.5" font-weight="400" fill="#2b2f36">country</text>
+<text x="752.6" y="497.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(15)</text>
+<text x="478.2" y="523.0" font-size="12.5" font-weight="400" fill="#2b2f36">phone</text>
+<text x="752.6" y="523.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(24)</text>
+<text x="478.2" y="549.0" font-size="12.5" font-weight="400" fill="#2b2f36">fax</text>
+<text x="752.6" y="549.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(24)</text>
+<text x="478.2" y="575.0" font-size="12.5" font-weight="400" fill="#2b2f36">homepage</text>
+<text x="752.6" y="575.0" font-size="11.5" text-anchor="end" fill="#8a9099">text</text>
+</g>
+<g><rect x="466.2" y="1946.0" width="298.4" height="118.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M466.2,1952.0 a6,6 0 0 1 6,-6 h286.4 a6,6 0 0 1 6,6 v28.0 h-298.4 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="615.4" y="1968.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">territories</text>
+<text x="478.2" y="1997.0" font-size="12.5" font-weight="600" fill="#2b2f36">territory_id</text>
+<text x="752.6" y="1997.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(20)</text>
+<text x="478.2" y="2023.0" font-size="12.5" font-weight="400" fill="#2b2f36">territory_description</text>
+<text x="752.6" y="2023.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(60)</text>
+<text x="478.2" y="2049.0" font-size="12.5" font-weight="400" fill="#2b2f36">region_id</text>
+<text x="752.6" y="2049.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+</g>
+<g><rect x="40.0" y="40.0" width="276.2" height="144.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M40.0,46.0 a6,6 0 0 1 6,-6 h264.2 a6,6 0 0 1 6,6 v28.0 h-276.2 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="178.1" y="62.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">us_states</text>
+<text x="52.0" y="91.0" font-size="12.5" font-weight="600" fill="#2b2f36">state_id</text>
+<text x="304.2" y="91.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="52.0" y="117.0" font-size="12.5" font-weight="400" fill="#2b2f36">state_name</text>
+<text x="304.2" y="117.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(100)</text>
+<text x="52.0" y="143.0" font-size="12.5" font-weight="400" fill="#2b2f36">state_abbr</text>
+<text x="304.2" y="143.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(2)</text>
+<text x="52.0" y="169.0" font-size="12.5" font-weight="400" fill="#2b2f36">state_region</text>
+<text x="304.2" y="169.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(50)</text>
+</g>
+<g>
+<circle cx="316.2" cy="837.0" r="3" fill="#2f6fb3"/>
+<circle cx="466.2" cy="837.0" r="3" fill="#2f6fb3"/>
+<circle cx="316.2" cy="863.0" r="3" fill="#b5452d"/>
+<circle cx="466.2" cy="1311.0" r="3" fill="#b5452d"/>
+<circle cx="316.2" cy="967.0" r="3" fill="#2e8b57"/>
+<circle cx="466.2" cy="1847.0" r="3" fill="#2e8b57"/>
+<circle cx="764.6" cy="113.0" r="3" fill="#8a4fbf"/>
+<circle cx="914.6" cy="233.0" r="3" fill="#8a4fbf"/>
+<circle cx="316.2" cy="811.0" r="3" fill="#c28a12"/>
+<circle cx="466.2" cy="87.0" r="3" fill="#c28a12"/>
+<circle cx="764.6" cy="665.0" r="3" fill="#1f8a99"/>
+<circle cx="914.6" cy="311.0" r="3" fill="#1f8a99"/>
+<circle cx="764.6" cy="285.0" r="3" fill="#b33f7a"/>
+<circle cx="914.6" cy="285.0" r="3" fill="#b33f7a"/>
+<circle cx="316.2" cy="2045.0" r="3" fill="#5d6b2f"/>
+<circle cx="466.2" cy="2045.0" r="3" fill="#5d6b2f"/>
+<circle cx="764.6" cy="1993.0" r="3" fill="#6b5bd6"/>
+<circle cx="914.6" cy="1337.0" r="3" fill="#6b5bd6"/>
+<circle cx="764.6" cy="1311.0" r="3" fill="#a0522d"/>
+<circle cx="914.6" cy="1311.0" r="3" fill="#a0522d"/>
+<circle cx="764.6" cy="1191.0" r="3" fill="#2f6fb3"/>
+<circle cx="914.6" cy="863.0" r="3" fill="#2f6fb3"/>
+<circle cx="764.6" cy="837.0" r="3" fill="#b5452d"/>
+<circle cx="914.6" cy="837.0" r="3" fill="#b5452d"/>
+</g></g></svg>

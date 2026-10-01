@@ -1,0 +1,307 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2551 1170" width="2551" height="1170" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+<rect width="100%" height="100%" fill="#fafaf8"/>
+<g transform="translate(0,0)">
+<g fill="none" stroke-width="1.6" stroke-opacity="0.85">
+<path d="M2136.4,706.0 C2211.4,706.0 2211.4,706.0 2286.4,706.0" stroke="#2f6fb3"><title>address.city_id -&gt; city.city_id</title></path>
+<path d="M1769.4,758.0 C1844.4,758.0 1844.4,758.0 1919.4,758.0" stroke="#b5452d"><title>city.country_id -&gt; country.country_id</title></path>
+<path d="M257.0,394.0 C332.0,394.0 332.0,802.0 407.0,802.0 L624.0,802.0 C699.0,802.0 699.0,1130.0 774.0,1130.0 L1050.2,1130.0 C1125.2,1130.0 1125.2,698.0 1200.2,698.0 L1409.8,698.0 C1484.8,698.0 1484.8,614.0 1559.8,614.0 L1769.4,614.0 C1844.4,614.0 1844.4,614.0 1919.4,614.0 L2136.4,614.0 C2211.4,614.0 2211.4,602.0 2286.4,602.0" stroke="#2e8b57"><title>customer.address_id -&gt; address.address_id</title></path>
+<path d="M257.0,290.0 C332.0,290.0 332.0,790.0 407.0,790.0 L624.0,790.0 C699.0,790.0 699.0,1118.0 774.0,1118.0 L1050.2,1118.0 C1125.2,1118.0 1125.2,686.0 1200.2,686.0 L1409.8,686.0 C1484.8,686.0 1484.8,425.0 1559.8,425.0" stroke="#8a4fbf"><title>customer.store_id -&gt; store.store_id</title></path>
+<path d="M624.0,415.0 C699.0,415.0 699.0,415.0 774.0,415.0" stroke="#c28a12"><title>film_actor.actor_id -&gt; actor.actor_id</title></path>
+<path d="M624.0,441.0 C699.0,441.0 699.0,587.0 774.0,587.0" stroke="#1f8a99"><title>film_actor.film_id -&gt; film.film_id</title></path>
+<path d="M1050.2,1019.0 C1125.2,1019.0 1125.2,613.0 1200.2,613.0" stroke="#b33f7a"><title>film_category.category_id -&gt; category.category_id</title></path>
+<path d="M1050.2,587.0 C1125.2,587.0 1125.2,587.0 1200.2,587.0" stroke="#5d6b2f"><title>film_category.film_id -&gt; film.film_id</title></path>
+<path d="M624.0,691.0 C699.0,691.0 699.0,691.0 774.0,691.0" stroke="#6b5bd6"><title>film.language_id -&gt; language.language_id</title></path>
+<path d="M624.0,691.0 C699.0,691.0 699.0,717.0 774.0,717.0" stroke="#a0522d"><title>film.original_language_id -&gt; language.language_id</title></path>
+<path d="M1050.2,587.0 C1125.2,587.0 1125.2,399.0 1200.2,399.0" stroke="#2f6fb3"><title>inventory.film_id -&gt; film.film_id</title></path>
+<path d="M1409.8,425.0 C1484.8,425.0 1484.8,425.0 1559.8,425.0" stroke="#b5452d"><title>inventory.store_id -&gt; store.store_id</title></path>
+<path d="M257.0,264.0 C332.0,264.0 332.0,113.0 407.0,113.0" stroke="#2e8b57"><title>payment.customer_id -&gt; customer.customer_id</title></path>
+<path d="M624.0,165.0 C699.0,165.0 699.0,165.0 774.0,165.0" stroke="#8a4fbf"><title>payment.rental_id -&gt; rental.rental_id</title></path>
+<path d="M624.0,139.0 C699.0,139.0 699.0,90.0 774.0,90.0 L1050.2,90.0 C1125.2,90.0 1125.2,90.0 1200.2,90.0 L1409.8,90.0 C1484.8,90.0 1484.8,90.0 1559.8,90.0 L1769.4,90.0 C1844.4,90.0 1844.4,295.0 1919.4,295.0" stroke="#c28a12"><title>payment.staff_id -&gt; staff.staff_id</title></path>
+<path d="M257.0,264.0 C332.0,264.0 332.0,264.0 407.0,264.0 L624.0,264.0 C699.0,264.0 699.0,243.0 774.0,243.0" stroke="#1f8a99"><title>rental.customer_id -&gt; customer.customer_id</title></path>
+<path d="M1050.2,217.0 C1125.2,217.0 1125.2,373.0 1200.2,373.0" stroke="#b33f7a"><title>rental.inventory_id -&gt; inventory.inventory_id</title></path>
+<path d="M1050.2,295.0 C1125.2,295.0 1125.2,295.0 1200.2,295.0 L1409.8,295.0 C1484.8,295.0 1484.8,295.0 1559.8,295.0 L1769.4,295.0 C1844.4,295.0 1844.4,295.0 1919.4,295.0" stroke="#5d6b2f"><title>rental.staff_id -&gt; staff.staff_id</title></path>
+<path d="M2136.4,373.0 C2211.4,373.0 2211.4,602.0 2286.4,602.0" stroke="#6b5bd6"><title>staff.address_id -&gt; address.address_id</title></path>
+<path d="M1769.4,425.0 C1844.4,425.0 1844.4,425.0 1919.4,425.0" stroke="#a0522d"><title>staff.store_id -&gt; store.store_id</title></path>
+<path d="M1769.4,477.0 C1844.4,477.0 1844.4,602.0 1919.4,602.0 L2136.4,602.0 C2211.4,602.0 2211.4,602.0 2286.4,602.0" stroke="#2f6fb3"><title>store.address_id -&gt; address.address_id</title></path>
+<path d="M1769.4,451.0 C1844.4,451.0 1844.4,295.0 1919.4,295.0" stroke="#b5452d"><title>store.manager_staff_id -&gt; staff.staff_id</title></path>
+</g>
+<g><rect x="774.0" y="368.0" width="276.2" height="144.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M774.0,374.0 a6,6 0 0 1 6,-6 h264.2 a6,6 0 0 1 6,6 v28.0 h-276.2 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="912.1" y="390.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">actor</text>
+<text x="786.0" y="419.0" font-size="12.5" font-weight="600" fill="#2b2f36">actor_id</text>
+<text x="1038.2" y="419.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="786.0" y="445.0" font-size="12.5" font-weight="400" fill="#2b2f36">first_name</text>
+<text x="1038.2" y="445.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(45)</text>
+<text x="786.0" y="471.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_name</text>
+<text x="1038.2" y="471.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(45)</text>
+<text x="786.0" y="497.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="1038.2" y="497.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+</g>
+<g><rect x="774.0" y="972.0" width="276.2" height="118.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M774.0,978.0 a6,6 0 0 1 6,-6 h264.2 a6,6 0 0 1 6,6 v28.0 h-276.2 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="912.1" y="994.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">category</text>
+<text x="786.0" y="1023.0" font-size="12.5" font-weight="600" fill="#2b2f36">category_id</text>
+<text x="1038.2" y="1023.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="786.0" y="1049.0" font-size="12.5" font-weight="400" fill="#2b2f36">name</text>
+<text x="1038.2" y="1049.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(25)</text>
+<text x="786.0" y="1075.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="1038.2" y="1075.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+</g>
+<g><rect x="774.0" y="540.0" width="276.2" height="404.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M774.0,546.0 a6,6 0 0 1 6,-6 h264.2 a6,6 0 0 1 6,6 v28.0 h-276.2 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="912.1" y="562.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">film</text>
+<text x="786.0" y="591.0" font-size="12.5" font-weight="600" fill="#2b2f36">film_id</text>
+<text x="1038.2" y="591.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="786.0" y="617.0" font-size="12.5" font-weight="400" fill="#2b2f36">title</text>
+<text x="1038.2" y="617.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(255)</text>
+<text x="786.0" y="643.0" font-size="12.5" font-weight="400" fill="#2b2f36">description</text>
+<text x="1038.2" y="643.0" font-size="11.5" text-anchor="end" fill="#8a9099">text</text>
+<text x="786.0" y="669.0" font-size="12.5" font-weight="400" fill="#2b2f36">release_year</text>
+<text x="1038.2" y="669.0" font-size="11.5" text-anchor="end" fill="#8a9099">year</text>
+<text x="786.0" y="695.0" font-size="12.5" font-weight="400" fill="#2b2f36">language_id</text>
+<text x="1038.2" y="695.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="786.0" y="721.0" font-size="12.5" font-weight="400" fill="#2b2f36">original_language_id</text>
+<text x="1038.2" y="721.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="786.0" y="747.0" font-size="12.5" font-weight="400" fill="#2b2f36">rental_duration</text>
+<text x="1038.2" y="747.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="786.0" y="773.0" font-size="12.5" font-weight="400" fill="#2b2f36">rental_rate</text>
+<text x="1038.2" y="773.0" font-size="11.5" text-anchor="end" fill="#8a9099">decimal(4, 2)</text>
+<text x="786.0" y="799.0" font-size="12.5" font-weight="400" fill="#2b2f36">length</text>
+<text x="1038.2" y="799.0" font-size="11.5" text-anchor="end" fill="#8a9099">smallint</text>
+<text x="786.0" y="825.0" font-size="12.5" font-weight="400" fill="#2b2f36">replacement_cost</text>
+<text x="1038.2" y="825.0" font-size="11.5" text-anchor="end" fill="#8a9099">decimal(5, 2)</text>
+<text x="786.0" y="851.0" font-size="12.5" font-weight="400" fill="#2b2f36">rating</text>
+<text x="1038.2" y="851.0" font-size="11.5" text-anchor="end" fill="#8a9099">mpaa_rating</text>
+<text x="786.0" y="877.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="1038.2" y="877.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+<text x="786.0" y="903.0" font-size="12.5" font-weight="400" fill="#2b2f36">special_features</text>
+<text x="1038.2" y="903.0" font-size="11.5" text-anchor="end" fill="#8a9099">array&lt;text&gt;</text>
+<text x="786.0" y="929.0" font-size="12.5" font-weight="400" fill="#2b2f36">fulltext</text>
+<text x="1038.2" y="929.0" font-size="11.5" text-anchor="end" fill="#8a9099">tsvector</text>
+</g>
+<g><rect x="407.0" y="368.0" width="217.0" height="118.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M407.0,374.0 a6,6 0 0 1 6,-6 h205.0 a6,6 0 0 1 6,6 v28.0 h-217.0 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="515.5" y="390.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">film_actor</text>
+<text x="419.0" y="419.0" font-size="12.5" font-weight="600" fill="#2b2f36">actor_id</text>
+<text x="612.0" y="419.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="419.0" y="445.0" font-size="12.5" font-weight="400" fill="#2b2f36">film_id</text>
+<text x="612.0" y="445.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="419.0" y="471.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="612.0" y="471.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+</g>
+<g><rect x="1200.2" y="540.0" width="209.6" height="118.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M1200.2,546.0 a6,6 0 0 1 6,-6 h197.6 a6,6 0 0 1 6,6 v28.0 h-209.6 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="1305.0" y="562.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">film_category</text>
+<text x="1212.2" y="591.0" font-size="12.5" font-weight="600" fill="#2b2f36">film_id</text>
+<text x="1397.8" y="591.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1212.2" y="617.0" font-size="12.5" font-weight="400" fill="#2b2f36">category_id</text>
+<text x="1397.8" y="617.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1212.2" y="643.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="1397.8" y="643.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+</g>
+<g><rect x="2286.4" y="555.0" width="224.4" height="248.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M2286.4,561.0 a6,6 0 0 1 6,-6 h212.4 a6,6 0 0 1 6,6 v28.0 h-224.4 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="2398.6" y="577.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">address</text>
+<text x="2298.4" y="606.0" font-size="12.5" font-weight="600" fill="#2b2f36">address_id</text>
+<text x="2498.8" y="606.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="2298.4" y="632.0" font-size="12.5" font-weight="400" fill="#2b2f36">address</text>
+<text x="2498.8" y="632.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(50)</text>
+<text x="2298.4" y="658.0" font-size="12.5" font-weight="400" fill="#2b2f36">address2</text>
+<text x="2498.8" y="658.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(50)</text>
+<text x="2298.4" y="684.0" font-size="12.5" font-weight="400" fill="#2b2f36">district</text>
+<text x="2498.8" y="684.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(20)</text>
+<text x="2298.4" y="710.0" font-size="12.5" font-weight="400" fill="#2b2f36">city_id</text>
+<text x="2498.8" y="710.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="2298.4" y="736.0" font-size="12.5" font-weight="400" fill="#2b2f36">postal_code</text>
+<text x="2498.8" y="736.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(10)</text>
+<text x="2298.4" y="762.0" font-size="12.5" font-weight="400" fill="#2b2f36">phone</text>
+<text x="2498.8" y="762.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(20)</text>
+<text x="2298.4" y="788.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="2498.8" y="788.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+</g>
+<g><rect x="1919.4" y="659.0" width="217.0" height="144.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M1919.4,665.0 a6,6 0 0 1 6,-6 h205.0 a6,6 0 0 1 6,6 v28.0 h-217.0 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="2027.9" y="681.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">city</text>
+<text x="1931.4" y="710.0" font-size="12.5" font-weight="600" fill="#2b2f36">city_id</text>
+<text x="2124.4" y="710.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1931.4" y="736.0" font-size="12.5" font-weight="400" fill="#2b2f36">city</text>
+<text x="2124.4" y="736.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(50)</text>
+<text x="1931.4" y="762.0" font-size="12.5" font-weight="400" fill="#2b2f36">country_id</text>
+<text x="2124.4" y="762.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1931.4" y="788.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="2124.4" y="788.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+</g>
+<g><rect x="1559.8" y="711.0" width="209.6" height="118.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M1559.8,717.0 a6,6 0 0 1 6,-6 h197.6 a6,6 0 0 1 6,6 v28.0 h-209.6 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="1664.6" y="733.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">country</text>
+<text x="1571.8" y="762.0" font-size="12.5" font-weight="600" fill="#2b2f36">country_id</text>
+<text x="1757.4" y="762.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1571.8" y="788.0" font-size="12.5" font-weight="400" fill="#2b2f36">country</text>
+<text x="1757.4" y="788.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(50)</text>
+<text x="1571.8" y="814.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="1757.4" y="814.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+</g>
+<g><rect x="40.0" y="217.0" width="217.0" height="300.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M40.0,223.0 a6,6 0 0 1 6,-6 h205.0 a6,6 0 0 1 6,6 v28.0 h-217.0 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="148.5" y="239.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">customer</text>
+<text x="52.0" y="268.0" font-size="12.5" font-weight="600" fill="#2b2f36">customer_id</text>
+<text x="245.0" y="268.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="52.0" y="294.0" font-size="12.5" font-weight="400" fill="#2b2f36">store_id</text>
+<text x="245.0" y="294.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="52.0" y="320.0" font-size="12.5" font-weight="400" fill="#2b2f36">first_name</text>
+<text x="245.0" y="320.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(45)</text>
+<text x="52.0" y="346.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_name</text>
+<text x="245.0" y="346.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(45)</text>
+<text x="52.0" y="372.0" font-size="12.5" font-weight="400" fill="#2b2f36">email</text>
+<text x="245.0" y="372.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(50)</text>
+<text x="52.0" y="398.0" font-size="12.5" font-weight="400" fill="#2b2f36">address_id</text>
+<text x="245.0" y="398.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="52.0" y="424.0" font-size="12.5" font-weight="400" fill="#2b2f36">activebool</text>
+<text x="245.0" y="424.0" font-size="11.5" text-anchor="end" fill="#8a9099">boolean</text>
+<text x="52.0" y="450.0" font-size="12.5" font-weight="400" fill="#2b2f36">create_date</text>
+<text x="245.0" y="450.0" font-size="11.5" text-anchor="end" fill="#8a9099">date</text>
+<text x="52.0" y="476.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="245.0" y="476.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+<text x="52.0" y="502.0" font-size="12.5" font-weight="400" fill="#2b2f36">active</text>
+<text x="245.0" y="502.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+</g>
+<g><rect x="1200.2" y="326.0" width="209.6" height="144.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M1200.2,332.0 a6,6 0 0 1 6,-6 h197.6 a6,6 0 0 1 6,6 v28.0 h-209.6 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="1305.0" y="348.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">inventory</text>
+<text x="1212.2" y="377.0" font-size="12.5" font-weight="600" fill="#2b2f36">inventory_id</text>
+<text x="1397.8" y="377.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1212.2" y="403.0" font-size="12.5" font-weight="400" fill="#2b2f36">film_id</text>
+<text x="1397.8" y="403.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1212.2" y="429.0" font-size="12.5" font-weight="400" fill="#2b2f36">store_id</text>
+<text x="1397.8" y="429.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1212.2" y="455.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="1397.8" y="455.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+</g>
+<g><rect x="407.0" y="644.0" width="217.0" height="118.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M407.0,650.0 a6,6 0 0 1 6,-6 h205.0 a6,6 0 0 1 6,6 v28.0 h-217.0 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="515.5" y="666.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">language</text>
+<text x="419.0" y="695.0" font-size="12.5" font-weight="600" fill="#2b2f36">language_id</text>
+<text x="612.0" y="695.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="419.0" y="721.0" font-size="12.5" font-weight="400" fill="#2b2f36">name</text>
+<text x="612.0" y="721.0" font-size="11.5" text-anchor="end" fill="#8a9099">char(20)</text>
+<text x="419.0" y="747.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="612.0" y="747.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+</g>
+<g><rect x="407.0" y="40.0" width="217.0" height="196.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M407.0,46.0 a6,6 0 0 1 6,-6 h205.0 a6,6 0 0 1 6,6 v28.0 h-217.0 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="515.5" y="62.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">payment</text>
+<text x="419.0" y="91.0" font-size="12.5" font-weight="600" fill="#2b2f36">payment_id</text>
+<text x="612.0" y="91.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="419.0" y="117.0" font-size="12.5" font-weight="400" fill="#2b2f36">customer_id</text>
+<text x="612.0" y="117.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="419.0" y="143.0" font-size="12.5" font-weight="400" fill="#2b2f36">staff_id</text>
+<text x="612.0" y="143.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="419.0" y="169.0" font-size="12.5" font-weight="400" fill="#2b2f36">rental_id</text>
+<text x="612.0" y="169.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="419.0" y="195.0" font-size="12.5" font-weight="400" fill="#2b2f36">amount</text>
+<text x="612.0" y="195.0" font-size="11.5" text-anchor="end" fill="#8a9099">decimal(5, 2)</text>
+<text x="419.0" y="221.0" font-size="12.5" font-weight="400" fill="#2b2f36">payment_date</text>
+<text x="612.0" y="221.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+</g>
+<g><rect x="774.0" y="118.0" width="276.2" height="222.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M774.0,124.0 a6,6 0 0 1 6,-6 h264.2 a6,6 0 0 1 6,6 v28.0 h-276.2 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="912.1" y="140.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">rental</text>
+<text x="786.0" y="169.0" font-size="12.5" font-weight="600" fill="#2b2f36">rental_id</text>
+<text x="1038.2" y="169.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="786.0" y="195.0" font-size="12.5" font-weight="400" fill="#2b2f36">rental_date</text>
+<text x="1038.2" y="195.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+<text x="786.0" y="221.0" font-size="12.5" font-weight="400" fill="#2b2f36">inventory_id</text>
+<text x="1038.2" y="221.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="786.0" y="247.0" font-size="12.5" font-weight="400" fill="#2b2f36">customer_id</text>
+<text x="1038.2" y="247.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="786.0" y="273.0" font-size="12.5" font-weight="400" fill="#2b2f36">return_date</text>
+<text x="1038.2" y="273.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+<text x="786.0" y="299.0" font-size="12.5" font-weight="400" fill="#2b2f36">staff_id</text>
+<text x="1038.2" y="299.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="786.0" y="325.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="1038.2" y="325.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+</g>
+<g><rect x="1919.4" y="248.0" width="217.0" height="326.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M1919.4,254.0 a6,6 0 0 1 6,-6 h205.0 a6,6 0 0 1 6,6 v28.0 h-217.0 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="2027.9" y="270.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">staff</text>
+<text x="1931.4" y="299.0" font-size="12.5" font-weight="600" fill="#2b2f36">staff_id</text>
+<text x="2124.4" y="299.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1931.4" y="325.0" font-size="12.5" font-weight="400" fill="#2b2f36">first_name</text>
+<text x="2124.4" y="325.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(45)</text>
+<text x="1931.4" y="351.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_name</text>
+<text x="2124.4" y="351.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(45)</text>
+<text x="1931.4" y="377.0" font-size="12.5" font-weight="400" fill="#2b2f36">address_id</text>
+<text x="2124.4" y="377.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1931.4" y="403.0" font-size="12.5" font-weight="400" fill="#2b2f36">email</text>
+<text x="2124.4" y="403.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(50)</text>
+<text x="1931.4" y="429.0" font-size="12.5" font-weight="400" fill="#2b2f36">store_id</text>
+<text x="2124.4" y="429.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1931.4" y="455.0" font-size="12.5" font-weight="400" fill="#2b2f36">active</text>
+<text x="2124.4" y="455.0" font-size="11.5" text-anchor="end" fill="#8a9099">boolean</text>
+<text x="1931.4" y="481.0" font-size="12.5" font-weight="400" fill="#2b2f36">username</text>
+<text x="2124.4" y="481.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(16)</text>
+<text x="1931.4" y="507.0" font-size="12.5" font-weight="400" fill="#2b2f36">password</text>
+<text x="2124.4" y="507.0" font-size="11.5" text-anchor="end" fill="#8a9099">varchar(40)</text>
+<text x="1931.4" y="533.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="2124.4" y="533.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+<text x="1931.4" y="559.0" font-size="12.5" font-weight="400" fill="#2b2f36">picture</text>
+<text x="2124.4" y="559.0" font-size="11.5" text-anchor="end" fill="#8a9099">varbinary</text>
+</g>
+<g><rect x="1559.8" y="378.0" width="209.6" height="144.0" rx="6" fill="#ffffff" stroke="#c9ccd1"/>
+<path d="M1559.8,384.0 a6,6 0 0 1 6,-6 h197.6 a6,6 0 0 1 6,6 v28.0 h-209.6 z" fill="#eef1f6" stroke="#c9ccd1"/>
+<text x="1664.6" y="400.0" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2a3a">store</text>
+<text x="1571.8" y="429.0" font-size="12.5" font-weight="600" fill="#2b2f36">store_id</text>
+<text x="1757.4" y="429.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1571.8" y="455.0" font-size="12.5" font-weight="400" fill="#2b2f36">manager_staff_id</text>
+<text x="1757.4" y="455.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1571.8" y="481.0" font-size="12.5" font-weight="400" fill="#2b2f36">address_id</text>
+<text x="1757.4" y="481.0" font-size="11.5" text-anchor="end" fill="#8a9099">int</text>
+<text x="1571.8" y="507.0" font-size="12.5" font-weight="400" fill="#2b2f36">last_update</text>
+<text x="1757.4" y="507.0" font-size="11.5" text-anchor="end" fill="#8a9099">timestamp</text>
+</g>
+<g>
+<circle cx="2136.4" cy="706.0" r="3" fill="#2f6fb3"/>
+<circle cx="2286.4" cy="706.0" r="3" fill="#2f6fb3"/>
+<circle cx="1769.4" cy="758.0" r="3" fill="#b5452d"/>
+<circle cx="1919.4" cy="758.0" r="3" fill="#b5452d"/>
+<circle cx="257.0" cy="394.0" r="3" fill="#2e8b57"/>
+<circle cx="2286.4" cy="602.0" r="3" fill="#2e8b57"/>
+<circle cx="257.0" cy="290.0" r="3" fill="#8a4fbf"/>
+<circle cx="1559.8" cy="425.0" r="3" fill="#8a4fbf"/>
+<circle cx="624.0" cy="415.0" r="3" fill="#c28a12"/>
+<circle cx="774.0" cy="415.0" r="3" fill="#c28a12"/>
+<circle cx="624.0" cy="441.0" r="3" fill="#1f8a99"/>
+<circle cx="774.0" cy="587.0" r="3" fill="#1f8a99"/>
+<circle cx="1050.2" cy="1019.0" r="3" fill="#b33f7a"/>
+<circle cx="1200.2" cy="613.0" r="3" fill="#b33f7a"/>
+<circle cx="1050.2" cy="587.0" r="3" fill="#5d6b2f"/>
+<circle cx="1200.2" cy="587.0" r="3" fill="#5d6b2f"/>
+<circle cx="624.0" cy="691.0" r="3" fill="#6b5bd6"/>
+<circle cx="774.0" cy="691.0" r="3" fill="#6b5bd6"/>
+<circle cx="624.0" cy="691.0" r="3" fill="#a0522d"/>
+<circle cx="774.0" cy="717.0" r="3" fill="#a0522d"/>
+<circle cx="1050.2" cy="587.0" r="3" fill="#2f6fb3"/>
+<circle cx="1200.2" cy="399.0" r="3" fill="#2f6fb3"/>
+<circle cx="1409.8" cy="425.0" r="3" fill="#b5452d"/>
+<circle cx="1559.8" cy="425.0" r="3" fill="#b5452d"/>
+<circle cx="257.0" cy="264.0" r="3" fill="#2e8b57"/>
+<circle cx="407.0" cy="113.0" r="3" fill="#2e8b57"/>
+<circle cx="624.0" cy="165.0" r="3" fill="#8a4fbf"/>
+<circle cx="774.0" cy="165.0" r="3" fill="#8a4fbf"/>
+<circle cx="624.0" cy="139.0" r="3" fill="#c28a12"/>
+<circle cx="1919.4" cy="295.0" r="3" fill="#c28a12"/>
+<circle cx="257.0" cy="264.0" r="3" fill="#1f8a99"/>
+<circle cx="774.0" cy="243.0" r="3" fill="#1f8a99"/>
+<circle cx="1050.2" cy="217.0" r="3" fill="#b33f7a"/>
+<circle cx="1200.2" cy="373.0" r="3" fill="#b33f7a"/>
+<circle cx="1050.2" cy="295.0" r="3" fill="#5d6b2f"/>
+<circle cx="1919.4" cy="295.0" r="3" fill="#5d6b2f"/>
+<circle cx="2136.4" cy="373.0" r="3" fill="#6b5bd6"/>
+<circle cx="2286.4" cy="602.0" r="3" fill="#6b5bd6"/>
+<circle cx="1769.4" cy="425.0" r="3" fill="#a0522d"/>
+<circle cx="1919.4" cy="425.0" r="3" fill="#a0522d"/>
+<circle cx="1769.4" cy="477.0" r="3" fill="#2f6fb3"/>
+<circle cx="2286.4" cy="602.0" r="3" fill="#2f6fb3"/>
+<circle cx="1769.4" cy="451.0" r="3" fill="#b5452d"/>
+<circle cx="1919.4" cy="295.0" r="3" fill="#b5452d"/>
+</g></g></svg>
