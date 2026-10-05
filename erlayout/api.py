@@ -54,7 +54,9 @@ def guarantee(crossings: int, columns: int, width_proven: int | None, lb: int, c
 
 
 def verify_and_render(schema: Schema, lay: Layout) -> tuple[int, dict, str]:
-    """Independent recount + geometric check + SVG.  Raises on any mismatch."""
+    """Independent recount + geometric check + SVG.  Raises on any mismatch.
+    Uses the layout's own row order when rows were reordered."""
+    schema = schema.with_row_order(lay.rows)
     recount = count_crossings(schema, lay.columns, lay.orders)
     geo = assign(schema, lay)
     check = geometric_check(schema, geo)
@@ -64,8 +66,10 @@ def verify_and_render(schema: Schema, lay: Layout) -> tuple[int, dict, str]:
 
 
 class _Search:
-    def __init__(self, schema: Schema, time_limit: float, workers: int, on_progress):
+    def __init__(self, schema: Schema, time_limit: float, workers: int, on_progress,
+                 reorder_rows: bool = False, pin_pk: bool = True):
         self.schema, self.T, self.workers, self.cb = schema, time_limit, workers, on_progress
+        self.reorder, self.pin_pk = reorder_rows, pin_pk
         self.n = len(schema.tables)
         self.t0 = time.time()
         self.lock = threading.Lock()
@@ -91,7 +95,7 @@ class _Search:
     def offer(self, lay: Layout, source: str):
         """Accept a candidate if it has fewer crossings, or as many in fewer columns."""
         try:
-            c = count_crossings(self.schema, lay.columns, lay.orders)
+            c = count_crossings(self.schema.with_row_order(lay.rows), lay.columns, lay.orders)
         except Exception:
             return
         with self.lock:
@@ -109,7 +113,7 @@ class _Search:
             if hint and self.best is not None and len(self.best.orders) <= k:
                 use = self.best
         try:
-            lay = ExactSolver(self.schema, k).solve(
+            lay = ExactSolver(self.schema, k, reorder_rows=self.reorder, pin_pk=self.pin_pk).solve(
                 time_limit=slice_, workers=self.workers, hint=use, cap=cap, phase2=phase2,
                 phase2_time=min(0.2 * slice_, 30) if phase2 else None,
                 on_improve=lambda l: self.offer(l, f"{k} columns"))
@@ -136,11 +140,12 @@ class _Search:
 
 
 def solve(schema: Schema, k: int | None = None, time_limit: float = 60.0, workers: int = 8,
-          k_max: int | None = None, certify_time: float | None = None, on_progress=None) -> dict:
+          k_max: int | None = None, certify_time: float | None = None, on_progress=None,
+          reorder_rows: bool = False, pin_pk: bool = True) -> dict:
     """k given -> that column budget only.  k None -> anytime search (module doc).
     on_progress(event) receives {"kind": "improved"|"width"|"bound"|"phase", "elapsed", ...};
     "improved" events carry the unverified candidate under "layout"."""
-    S = _Search(schema, time_limit, workers, on_progress)
+    S = _Search(schema, time_limit, workers, on_progress, reorder_rows, pin_pk)
     n = S.n
     base = heuristic(schema) if schema.solver_edges() else None
     if base is None:
@@ -156,7 +161,7 @@ def solve(schema: Schema, k: int | None = None, time_limit: float = 60.0, worker
         budget = S.left() * share if certify_time is None else min(certify_time, S.left())
         if budget >= 2:
             lb = lower_bound(schema, S.best, budget, workers, attempt_cap=max(10.0, 0.15 * time_limit),
-                             should_stop=lambda: S.left() < 1)
+                             should_stop=lambda: S.left() < 1, reorder_rows=reorder_rows, pin_pk=pin_pk)
             if lb["bound"] > S.lb["bound"] or lb["complete"]:
                 S.lb = lb
             S.emit("bound", bound=S.lb["bound"], complete=S.lb["complete"])
@@ -219,6 +224,8 @@ def solve(schema: Schema, k: int | None = None, time_limit: float = 60.0, worker
         "seconds": round(S.elapsed(), 2),
         "time_to_best": round(S.best_at, 2),
         "layout": {"columns": best.columns, "orders": [[[kind, ref] for kind, ref in o] for o in best.orders]},
+        "row_order": best.rows or {},
+        "rows_reordered": reorder_rows,
         "svg": svg,
     }
 

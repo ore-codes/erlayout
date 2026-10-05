@@ -119,3 +119,30 @@ def test_web_jobs_report_progress_then_result():
     assert job["crossings"] == job["verification"]["crossings"]
     assert client.get("/api/jobs/nope").status_code == 404
     assert client.post("/api/jobs", json={"text": "hello"}).status_code == 400
+
+
+TWIST_SQL = """
+CREATE TABLE b (p INT, q INT);
+CREATE TABLE a (x INT REFERENCES b(q), y INT REFERENCES b(p));
+"""
+
+
+def test_row_order_option():
+    client = TestClient(app)
+    keep = client.post("/api/layout", json={"text": TWIST_SQL, "time_limit": 20}).json()
+    assert keep["crossings"] == 1 and keep["row_order"] == {} and not keep["rows_reordered"]
+    free = client.post("/api/layout", json={"text": TWIST_SQL, "time_limit": 20, "rows": "reorder-free"}).json()
+    assert free["crossings"] == 0 and free["row_order"] and free["rows_reordered"]
+    assert free["verification"]["crossings"] == 0
+    bad = client.post("/api/layout", json={"text": TWIST_SQL, "rows": "shuffle"})
+    assert bad.status_code == 400
+
+
+def test_cli_reorder_flag(tmp_path):
+    src = tmp_path / "t.sql"
+    src.write_text(TWIST_SQL)
+    r = subprocess.run([sys.executable, "-m", "erlayout.cli", "layout", str(src), "-o", str(tmp_path / "o.svg"),
+                        "--time", "20", "--workers", "1", "--reorder-rows", "--free-pk"],
+                       capture_output=True, text=True, cwd=ROOT)
+    assert r.returncode == 0, r.stderr
+    assert "0 crossings" in r.stdout and "reordered" in r.stdout

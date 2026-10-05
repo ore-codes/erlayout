@@ -98,3 +98,46 @@ def test_exact_never_worse_than_heuristic(seed):
     assert lay.crossings <= h.crossings
     geo = assign(s, h)
     assert geometric_check(s, geo)["crossings"] == h.crossings
+
+
+# ------------------------------------------------------------ row reordering
+@pytest.mark.parametrize("seed", range(40))
+def test_reorder_matches_brute_force(seed):
+    rng = random.Random(9000 + seed)
+    s = random_schema(rng, rng.choice([3, 4]), rng.choice([4, 5]), max_cols=4)
+    k = 3
+    for pin in (True, False):
+        try:
+            expected, _ = brute_force(s, k, limit=600_000, reorder_rows=True, pin_pk=pin)
+        except RuntimeError as exc:
+            if "no feasible" in str(exc):
+                return
+            pytest.skip(str(exc))
+        lay = ExactSolver(s, k, reorder_rows=True, pin_pk=pin).solve(time_limit=60, workers=1)
+        assert lay.status == "OPTIMAL"
+        assert lay.crossings == expected
+        s2 = s.with_row_order(lay.rows)
+        assert count_crossings(s2, lay.columns, lay.orders) == expected
+        geo = geometric_check(s2, assign(s2, lay))
+        assert geo["crossings"] == expected and geo["edges_through_tables"] == 0
+        # reordering can only help
+        assert expected <= brute_force(s, k, limit=600_000)[0]
+
+
+def test_reorder_removes_forced_twist():
+    lay = ExactSolver(twist(), 2, reorder_rows=True, pin_pk=False).solve(time_limit=30, workers=1)
+    assert lay.status == "OPTIMAL" and lay.crossings == 0 and lay.rows
+
+
+def test_reorder_keeps_pk_first_and_non_port_rows():
+    rng = random.Random(77)
+    for _ in range(10):
+        s = random_schema(rng, 5, 7, max_cols=6)
+        try:
+            lay = ExactSolver(s, 3, reorder_rows=True).solve(time_limit=30, workers=1)
+        except RuntimeError:
+            continue
+        s2 = s.with_row_order(lay.rows)
+        for t, t2 in zip(s.tables, s2.tables):
+            assert sorted(c.name for c in t.columns) == sorted(c.name for c in t2.columns)
+            assert t2.columns[0].name == t.columns[0].name     # primary key stays on top

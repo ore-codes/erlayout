@@ -92,6 +92,21 @@ class Schema:
             out.append(e)
         return out
 
+    def with_row_order(self, rows: dict | None) -> "Schema":
+        """Copy of the schema whose tables list their columns in the given order
+        (table name -> column names).  Tables not in `rows` keep their order."""
+        if not rows:
+            return self
+        tables = []
+        for t in self.tables:
+            order = rows.get(t.name)
+            if order:
+                by = {c.name: c for c in t.columns}
+                tables.append(Table(t.name, [by[n] for n in order]))
+            else:
+                tables.append(t)
+        return Schema(tables, list(self.edges))
+
     def to_dict(self) -> dict:
         return {
             "tables": [

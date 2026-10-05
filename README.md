@@ -43,6 +43,20 @@ erlayout serve --port 8000                # web interface at http://127.0.0.1:80
 Options: `--format sql|dbml|json` (auto-detected), `--k-max`, `--certify-time`,
 `--workers` (defaults to all cores).
 
+### Row order (opt-in)
+
+By default every table keeps its columns in the order the schema declares.
+`--reorder-rows` lets erlayout also choose the order of the rows that carry
+foreign-key lines (other rows keep their places, the primary key stays on top);
+add `--free-pk` to let the primary key move too.  The web interface has the same
+three choices under **Row order**.  The new orders are listed in the output.
+
+| Sakila, proven optimum | Crossings |
+| --- | --- |
+| Row order as declared | 2 |
+| Reordered, primary key on top | 1 |
+| Reordered freely | 0 |
+
 ### How automatic mode spends its time
 
 The search is *anytime*: a usable diagram is written to `-o` within about a

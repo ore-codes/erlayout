@@ -48,7 +48,8 @@ def crossing_pairs(schema: Schema, lay: Layout) -> list[tuple[int, int, int]]:
 
 
 def lower_bound(schema: Schema, lay: Layout, time_limit: float, workers: int = 8,
-                attempt_cap: float | None = None, should_stop=None) -> dict:
+                attempt_cap: float | None = None, should_stop=None,
+                reorder_rows: bool = False, pin_pk: bool = True) -> dict:
     """Grow a sub-schema from the tables touched by the layout's crossings,
     adding the table with the most foreign keys into the set each step, and
     solve each sub-schema at K = its size.  Every proven optimum is a lower
@@ -63,7 +64,7 @@ def lower_bound(schema: Schema, lay: Layout, time_limit: float, workers: int = 8
         return out
     edges = schema.solver_edges()
     current = set()
-    for _, i, j in crossing_pairs(schema, lay):
+    for _, i, j in crossing_pairs(schema.with_row_order(lay.rows), lay):
         for e in (edges[i], edges[j]):
             current.update((e.src_table, e.dst_table))
     while True:
@@ -73,7 +74,8 @@ def lower_bound(schema: Schema, lay: Layout, time_limit: float, workers: int = 8
         sub = induced(schema, current)
         cap = min(left, attempt_cap) if attempt_cap else left
         try:
-            res = ExactSolver(sub, len(sub.tables)).solve(time_limit=cap, workers=workers, phase2=False)
+            res = ExactSolver(sub, len(sub.tables), reorder_rows=reorder_rows, pin_pk=pin_pk).solve(
+                time_limit=cap, workers=workers, phase2=False)
         except RuntimeError:
             res = None
         if res is None:

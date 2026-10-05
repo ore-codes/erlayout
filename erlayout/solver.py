@@ -45,6 +45,7 @@ class Layout:
     seconds: float = 0.0
     k: int = 0
     stats: dict = field(default_factory=dict)
+    rows: dict | None = None          # table -> column order, when rows were reordered
 
 
 def _status_name(code) -> str:
@@ -54,7 +55,13 @@ def _status_name(code) -> str:
 
 
 class ExactSolver:
-    def __init__(self, schema: Schema, k: int | None = None):
+    def __init__(self, schema: Schema, k: int | None = None, reorder_rows: bool = False,
+                 pin_pk: bool = True):
+        """reorder_rows: the vertical order of the rows that carry foreign-key
+        lines inside each table becomes part of the optimisation (other rows
+        keep their places).  pin_pk keeps the primary key above them."""
+        self.reorder = reorder_rows
+        self.pin_pk = pin_pk
         self.schema = schema
         self.tables = [t.name for t in schema.tables]
         self.tidx = {n: i for i, n in enumerate(self.tables)}
@@ -165,10 +172,44 @@ class ExactSolver:
         TRUE = m.NewConstant(1)
         FALSE = m.NewConstant(0)
 
+        # row reordering: rowv[(i, a, b)] (a < b, 1-based offsets) = row a above row b
+        ports = {i: set() for i in range(n)}
+        for j in range(E):
+            ports[es[j]].add(self.row_s[j])
+            ports[et[j]].add(self.row_t[j])
+        rowv = {}
+        if self.reorder:
+            for i in range(n):
+                pr = sorted(ports[i])
+                for x in range(len(pr)):
+                    for y in range(x + 1, len(pr)):
+                        rowv[(i, pr[x], pr[y])] = m.NewBoolVar(f"r{i}_{pr[x]}_{pr[y]}")
+                lt_ = lambda a, b, i=i: rowv[(i, a, b)] if a < b else rowv[(i, b, a)].Not()
+                for x in range(len(pr)):
+                    for y in range(x + 1, len(pr)):
+                        for z in range(y + 1, len(pr)):
+                            a, b, c3 = pr[x], pr[y], pr[z]
+                            m.AddBoolOr([lt_(a, b).Not(), lt_(b, c3).Not(), lt_(c3, a).Not()])
+                            m.AddBoolOr([lt_(b, a).Not(), lt_(c3, b).Not(), lt_(a, c3).Not()])
+                if self.pin_pk:
+                    t = self.schema.tables[i]
+                    pk = next((r + 1 for r, col in enumerate(t.columns) if col.pk), None)
+                    if pk in ports[i]:
+                        for o in pr:
+                            if o != pk:
+                                m.Add(lt_(pk, o) == 1)
+
+        def row_lt(i, a, b):
+            return rowv[(i, a, b)] if a < b else rowv[(i, b, a)].Not()
+
         def rel(ra, rb, c):
             """literals (lt, gt) for key(ra) < key(rb) at column c."""
             (ia, _, roa), (ib, _, rob) = ra, rb
             if ia == ib:
+                if roa == rob: return FALSE, FALSE
+                if self.reorder and ia[0] == "T":
+                    lt = row_lt(ia[1], roa, rob)
+                    return lt, lt.Not()
                 if roa < rob: return TRUE, FALSE
                 if roa > rob: return FALSE, TRUE
                 return FALSE, FALSE
@@ -247,7 +288,17 @@ class ExactSolver:
                     if cc == c and u in pos and v in pos:
                         m.AddHint(bv, 1 if pos[u] < pos[v] else 0)
 
-        self._vars = dict(inT=inT, dum=dum, above=above, items=items)
+        if hint is not None and self.reorder:
+            for (i, a, b), rv in rowv.items():
+                t = self.tables[i]
+                if hint.rows and t in hint.rows:
+                    names = [c.name for c in self.schema.tables[i].columns]
+                    pos = {nm: q for q, nm in enumerate(hint.rows[t])}
+                    m.AddHint(rv, 1 if pos[names[a - 1]] < pos[names[b - 1]] else 0)
+                else:
+                    m.AddHint(rv, 1)
+
+        self._vars = dict(inT=inT, dum=dum, above=above, items=items, rowv=rowv, ports=ports)
         return m, total_cross, total_span, len(cross)
 
     # ---------------------------------------------------------------- extract
@@ -276,6 +327,29 @@ class ExactSolver:
             live = sorted(live, key=lambda u: -counts[u])
             orders.append([("T", self.tables[r]) if k == "T" else ("D", r) for k, r in live])
         return columns, orders
+
+    def _extract_rows(self, solver) -> dict | None:
+        """New column order per table: the rows that carry lines are put back
+        into the slots they occupied before, in the solved order; every other
+        row stays where it was."""
+        if not self.reorder:
+            return None
+        v = self._vars
+        rows = {}
+        for i, t in enumerate(self.tables):
+            pr = sorted(v["ports"][i])
+            if len(pr) < 2:
+                continue
+            def wins(a):
+                return sum(1 for b in pr if b != a and solver.Value(v["rowv"][(i, min(a, b), max(a, b))]) == (a < b))
+            order = sorted(pr, key=lambda a: -wins(a))
+            names = [c.name for c in self.schema.tables[i].columns]
+            new = list(names)
+            for slot, a in zip(pr, order):
+                new[slot - 1] = names[a - 1]
+            if new != names:
+                rows[t] = new
+        return rows
 
     # ------------------------------------------------------------------ solve
     @staticmethod
@@ -340,7 +414,8 @@ class ExactSolver:
                         cols, ords = outer._extract(self)
                         cols, ords = outer._compact(cols, ords)
                         on_improve(Layout(cols, ords, int(round(self.ObjectiveValue())), 0, "FEASIBLE",
-                                          self.BestObjectiveBound(), time.time() - t0, outer.k))
+                                          self.BestObjectiveBound(), time.time() - t0, outer.k,
+                                          rows=outer._extract_rows(self)))
                     except Exception:  # a progress report must never break the search
                         pass
             st = s.Solve(m, _CB())
@@ -354,6 +429,7 @@ class ExactSolver:
         bound = s.BestObjectiveBound()
         status = _status_name(st)
         columns, orders = self._extract(s)
+        rows = self._extract_rows(s)
         stats = {"vars": len(m.Proto().variables), "constraints": len(m.Proto().constraints),
                  "crossing_vars": ncross, "phase1_seconds": round(time.time() - t0, 3),
                  "conflicts": s.NumConflicts(), "branches": s.NumBranches()}
@@ -361,7 +437,7 @@ class ExactSolver:
 
         left = time_limit - (time.time() - t0)
         if phase2 and left > 0.5:
-            hint2 = Layout(columns, orders, best, sp)
+            hint2 = Layout(columns, orders, best, sp, rows=rows)
             m2, _, _, _ = self._build(hint=hint2, crossing_cap=best, minimize="span")
             s2 = cp_model.CpSolver()
             s2.parameters.max_time_in_seconds = max(0.5, min(left, phase2_time) if phase2_time else left)
@@ -369,9 +445,10 @@ class ExactSolver:
             st2 = s2.Solve(m2)
             if st2 in (cp_model.OPTIMAL, cp_model.FEASIBLE):
                 columns, orders = self._extract(s2)
+                rows = self._extract_rows(s2)
                 sp = int(round(s2.ObjectiveValue()))
                 stats["phase2_status"] = _status_name(st2)
                 stats["span_lower_bound"] = s2.BestObjectiveBound()
 
         columns, orders = self._compact(columns, orders)
-        return Layout(columns, orders, best, sp, status, bound, time.time() - t0, self.k, stats)
+        return Layout(columns, orders, best, sp, status, bound, time.time() - t0, self.k, stats, rows=rows)

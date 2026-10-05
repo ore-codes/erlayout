@@ -23,6 +23,7 @@ class LayoutRequest(BaseModel):
     format: str | None = None
     k: int | None = None
     time_limit: float = 60.0
+    rows: str = "keep"          # keep | reorder | reorder-free
 
 
 @app.get("/")
@@ -33,6 +34,12 @@ def index():
 @app.get("/api/example", response_class=PlainTextResponse)
 def example():
     return (STATIC / "example.sql").read_text()
+
+
+def _row_opts(req: LayoutRequest) -> dict:
+    if req.rows not in ("keep", "reorder", "reorder-free"):
+        raise HTTPException(400, "rows must be keep, reorder or reorder-free")
+    return {"reorder_rows": req.rows != "keep", "pin_pk": req.rows != "reorder-free"}
 
 
 def _parse(req: LayoutRequest):
@@ -52,7 +59,7 @@ def layout(req: LayoutRequest):
         raise HTTPException(400, "k must be between 2 and 40")
     t = max(1.0, min(req.time_limit, 1800.0))
     try:
-        res = solve(schema, k=req.k, time_limit=t, workers=os.cpu_count() or 4)
+        res = solve(schema, k=req.k, time_limit=t, workers=os.cpu_count() or 4, **_row_opts(req))
     except RuntimeError as exc:
         raise HTTPException(422, str(exc))
     res["tables"] = len(schema.tables)
@@ -76,7 +83,7 @@ _JOBS_LOCK = threading.Lock()
 MAX_JOBS = 20
 
 
-def _run_job(job_id: str, schema, k, t):
+def _run_job(job_id: str, schema, k, t, opts):
     job = JOBS[job_id]
 
     def progress(ev):
@@ -97,7 +104,7 @@ def _run_job(job_id: str, schema, k, t):
                 job["lower_bound"] = ev["bound"]
 
     try:
-        res = solve(schema, k=k, time_limit=t, workers=os.cpu_count() or 4, on_progress=progress)
+        res = solve(schema, k=k, time_limit=t, workers=os.cpu_count() or 4, on_progress=progress, **opts)
         res["tables"] = len(schema.tables)
         res["edges"] = len(schema.edges)
         with _JOBS_LOCK:
@@ -113,6 +120,7 @@ def start_job(req: LayoutRequest):
     if req.k is not None and not (2 <= req.k <= 40):
         raise HTTPException(400, "k must be between 2 and 40")
     t = max(1.0, min(req.time_limit, 1800.0))
+    opts = _row_opts(req)
     job_id = uuid.uuid4().hex[:12]
     with _JOBS_LOCK:
         if len(JOBS) >= MAX_JOBS:   # forget the oldest finished jobs
@@ -124,7 +132,7 @@ def start_job(req: LayoutRequest):
                         "time_limit": t, "elapsed": 0.0, "crossings": None, "svg": None,
                         "improvements": 0, "lower_bound": 0, "tables": len(schema.tables),
                         "edges": len(schema.edges)}
-    threading.Thread(target=_run_job, args=(job_id, schema, req.k, t), daemon=True).start()
+    threading.Thread(target=_run_job, args=(job_id, schema, req.k, t, opts), daemon=True).start()
     return {"id": job_id}
 
 

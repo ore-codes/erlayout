@@ -62,6 +62,13 @@
       <label>Columns
         <select id="k"><option value="">Auto</option></select>
       </label>
+      <label>Row order
+        <select id="rows">
+          <option value="keep" selected>Keep as is</option>
+          <option value="reorder">Reorder, primary key on top</option>
+          <option value="reorder-free">Reorder freely</option>
+        </select>
+      </label>
       <label>Time budget
         <select id="time"><option value="30">30 s</option><option value="120">2 min</option><option value="300" selected>5 min</option><option value="600">10 min</option><option value="1800">30 min</option></select>
       </label>
@@ -145,6 +152,8 @@ function render(job, final) {
   $('#stats').innerHTML = stats.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
   $('#log').textContent = final
     ? (job.history || []).map(h => `k=${h.k}: ${h.status || h.error}  crossings=${h.crossings ?? '–'}  ${h.seconds ?? ''}s`).join('\n')
+      + (Object.keys(job.row_order || {}).length
+          ? '\n\nReordered tables:\n' + Object.entries(job.row_order).map(([t, o]) => `  ${t}: ${o.join(', ')}`).join('\n') : '')
       + '\n\nIndependent checks: ' + JSON.stringify(job.verification)
     : `phase: ${job.phase}, improvements so far: ${job.improvements}`;
   $('#status').hidden = false;
@@ -156,7 +165,8 @@ function render(job, final) {
 }
 $('#go').onclick = async () => {
   const body = { text: $('#schema').value, format: $('#format').value || null,
-                 k: $('#k').value ? +$('#k').value : null, time_limit: +$('#time').value };
+                 k: $('#k').value ? +$('#k').value : null, time_limit: +$('#time').value,
+                 rows: $('#rows').value };
   clearTimeout(pollTimer);
   $('#err').hidden = true; $('#go').disabled = true; $('#go').textContent = 'Solving…';
   result = null; base = null; drawn = null; show();

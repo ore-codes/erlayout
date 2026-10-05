@@ -27,6 +27,10 @@ def main(argv=None) -> int:
     lp.add_argument("--time", type=float, default=120.0, help="total time budget in seconds")
     lp.add_argument("--certify-time", type=float,
                     help="extra seconds to search for a global optimality certificate (default: what is left of --time)")
+    lp.add_argument("--reorder-rows", action="store_true",
+                    help="let erlayout reorder the rows that carry foreign-key lines inside each table")
+    lp.add_argument("--free-pk", action="store_true",
+                    help="with --reorder-rows, allow the primary key to move below other key rows")
     lp.add_argument("--workers", type=int, default=os.cpu_count() or 4)
     lp.add_argument("--json", help="also write the full result as JSON")
 
@@ -64,7 +68,8 @@ def main(argv=None) -> int:
                   file=sys.stderr, flush=True)
 
     res = solve(schema, k=a.k, time_limit=a.time, workers=a.workers, k_max=a.k_max,
-                certify_time=a.certify_time, on_progress=progress)
+                certify_time=a.certify_time, on_progress=progress,
+                reorder_rows=a.reorder_rows, pin_pk=not a.free_pk)
     with open(a.output, "w", encoding="utf-8") as f:
         f.write(res["svg"])
     if a.json:
@@ -72,6 +77,8 @@ def main(argv=None) -> int:
             json.dump({k: v for k, v in res.items() if k != "svg"}, f, indent=2)
     print(f"best found after {res['time_to_best']}s of {res['seconds']}s", file=sys.stderr)
     print(res["guarantee"])
+    for t, order in res.get("row_order", {}).items():
+        print(f"  reordered {t}: {', '.join(order)}")
     print(f"baseline (barycenter): {res['baseline']['crossings']} crossings; "
           f"verified: {res['verification']}; wrote {a.output}")
     return 0
