@@ -98,3 +98,24 @@ def test_cli(tmp_path):
     assert "Proven optimal" in r.stdout
     assert out.read_text().startswith("<svg")
     assert json.loads(js.read_text())["status"] == "OPTIMAL"
+
+
+def test_web_jobs_report_progress_then_result():
+    import time
+    client = TestClient(app)
+    r = client.post("/api/jobs", json={"text": SMALL, "time_limit": 20})
+    assert r.status_code == 200, r.text
+    job_id = r.json()["id"]
+    seen_svg_before_done = False
+    for _ in range(200):
+        job = client.get(f"/api/jobs/{job_id}").json()
+        if not job["done"] and job["svg"]:
+            seen_svg_before_done = True
+        if job["done"]:
+            break
+        time.sleep(0.1)
+    assert job["done"] and job.get("error") is None
+    assert job["status"] == "OPTIMAL" and job["svg"].startswith("<svg")
+    assert job["crossings"] == job["verification"]["crossings"]
+    assert client.get("/api/jobs/nope").status_code == 404
+    assert client.post("/api/jobs", json={"text": "hello"}).status_code == 400

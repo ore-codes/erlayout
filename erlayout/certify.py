@@ -47,43 +47,50 @@ def crossing_pairs(schema: Schema, lay: Layout) -> list[tuple[int, int, int]]:
     return out
 
 
-def certify(schema: Schema, lay: Layout, time_limit: float, workers: int = 8) -> dict | None:
-    """Greedily grow a sub-schema from the tables touched by the layout's
-    crossings until its global optimum reaches lay.crossings.  Returns the
-    certificate or None if the time budget runs out first."""
+def lower_bound(schema: Schema, lay: Layout, time_limit: float, workers: int = 8,
+                attempt_cap: float | None = None, should_stop=None) -> dict:
+    """Grow a sub-schema from the tables touched by the layout's crossings,
+    adding the table with the most foreign keys into the set each step, and
+    solve each sub-schema at K = its size.  Every proven optimum is a lower
+    bound for the whole schema (Lemma 3).  Stops when the bound reaches
+    lay.crossings, when an attempt cannot be proven within attempt_cap
+    (larger ones would be harder still), or when time runs out.
+    Returns {"bound", "tables", "edges", "complete", "attempts", "seconds"}."""
     target = lay.crossings
-    if target == 0:
-        return None
     t0 = time.time()
+    out = {"bound": 0, "tables": [], "edges": [], "complete": target == 0, "attempts": [], "seconds": 0.0}
+    if target == 0:
+        return out
     edges = schema.solver_edges()
-    seed = set()
+    current = set()
     for _, i, j in crossing_pairs(schema, lay):
         for e in (edges[i], edges[j]):
-            seed.update((e.src_table, e.dst_table))
-    attempts = []
-    current = set(seed)
+            current.update((e.src_table, e.dst_table))
     while True:
         left = time_limit - (time.time() - t0)
-        if left < 1:
-            return None
+        if left < 1 or (should_stop and should_stop()):
+            break
         sub = induced(schema, current)
-        k = len(sub.tables)
+        cap = min(left, attempt_cap) if attempt_cap else left
         try:
-            res = ExactSolver(sub, k).solve(time_limit=left, workers=workers, phase2=False)
+            res = ExactSolver(sub, len(sub.tables)).solve(time_limit=cap, workers=workers, phase2=False)
         except RuntimeError:
             res = None
-        if res is not None:
-            attempts.append({"tables": len(current), "status": res.status, "optimum": res.crossings,
-                             "seconds": round(res.seconds, 2)})
-            if res.status == "OPTIMAL" and res.crossings >= target:
-                return {"tables": sorted(current), "forced_crossings": res.crossings,
-                        "edges": sorted(e.label for e in sub.solver_edges()),
-                        "attempts": attempts, "seconds": round(time.time() - t0, 2)}
-            if res.status != "OPTIMAL":
-                return None
+        if res is None:
+            break
+        out["attempts"].append({"tables": len(current), "status": res.status, "optimum": res.crossings,
+                                "seconds": round(res.seconds, 2)})
+        if res.status != "OPTIMAL":
+            break
+        if res.crossings > out["bound"]:
+            out.update(bound=res.crossings, tables=sorted(current),
+                       edges=sorted(e.label for e in sub.solver_edges()))
+        if res.crossings >= target:
+            out["complete"] = True
+            break
         outside = [t.name for t in schema.tables if t.name not in current]
         if not outside:
-            return None
+            break
 
         def score(name):
             into = sum(1 for e in edges if (e.src_table == name and e.dst_table in current)
@@ -91,3 +98,14 @@ def certify(schema: Schema, lay: Layout, time_limit: float, workers: int = 8) ->
             deg = sum(1 for e in edges if name in (e.src_table, e.dst_table))
             return (into, deg)
         current.add(max(outside, key=score))
+    out["seconds"] = round(time.time() - t0, 2)
+    return out
+
+
+def certify(schema: Schema, lay: Layout, time_limit: float, workers: int = 8) -> dict | None:
+    """Certificate that lay is globally optimal, or None."""
+    lb = lower_bound(schema, lay, time_limit, workers)
+    if lay.crossings == 0 or not lb["complete"]:
+        return None
+    return {"tables": lb["tables"], "forced_crossings": lb["bound"], "edges": lb["edges"],
+            "attempts": lb["attempts"], "seconds": lb["seconds"]}

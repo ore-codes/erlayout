@@ -278,21 +278,78 @@ class ExactSolver:
         return columns, orders
 
     # ------------------------------------------------------------------ solve
+    @staticmethod
+    def _complete_hint(m: cp_model.CpModel, workers: int, limit: float):
+        """The layout hint only names placement and order literals; CP-SAT
+        often fails to rebuild the remaining ~95% of the assignment from that.
+        Fix the hinted literals in a copy, let propagation fill in the rest
+        (dummy slots, crossing indicators, spans), then hint every variable."""
+        proto = m.Proto()
+        pairs = list(zip(proto.solution_hint.vars, proto.solution_hint.values))
+        if not pairs:
+            return False
+        c = m.clone()
+        for idx, val in pairs:
+            c.Add(c.GetIntVarFromProtoIndex(idx) == val)
+        cs = cp_model.CpSolver()
+        cs.parameters.max_time_in_seconds = limit
+        cs.parameters.num_workers = workers
+        st = cs.Solve(c)
+        if st not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+            return False
+        m.ClearHints()
+        for i in range(len(proto.variables)):
+            v = m.GetIntVarFromProtoIndex(i)
+            m.AddHint(v, cs.Value(v))
+        return True
+
+    @staticmethod
+    def _compact(columns, orders):
+        """Drop empty outer columns and renumber from 0."""
+        used = [c for c in range(len(orders)) if any(k == "T" for k, _ in orders[c])]
+        lo_c, hi_c = min(used), max(used)
+        return {t: c - lo_c for t, c in columns.items()}, orders[lo_c:hi_c + 1]
+
     def solve(self, time_limit: float = 60.0, workers: int = 8, hint: Layout | None = None,
-              phase2: bool = True, log: bool = False) -> Layout:
+              phase2: bool = True, log: bool = False, cap: int | None = None,
+              phase2_time: float | None = None, on_improve=None) -> Layout:
+        """cap: only accept drawings with at most `cap` crossings.
+        phase2_time: limit for the span-minimisation pass (default: what is left).
+        on_improve(layout): called from the solver thread for every improving
+        phase-1 solution (crossings = objective value, not yet re-verified)."""
         t0 = time.time()
         if not self.edges:
             cols = {t: 0 for t in self.tables}
             return Layout(cols, [[("T", t) for t in self.tables]], 0, 0, "OPTIMAL", 0, 0.0, self.k)
 
-        m, cross, span, ncross = self._build(hint=hint)
+        m, cross, span, ncross = self._build(hint=hint, crossing_cap=cap)
+        hint_ok = None
+        if hint is not None:
+            hint_ok = self._complete_hint(m, workers, max(1.0, min(15.0, 0.25 * time_limit)))
         s = cp_model.CpSolver()
-        s.parameters.max_time_in_seconds = time_limit
+        p1 = time_limit - (phase2_time if (phase2 and phase2_time) else 0)
+        s.parameters.max_time_in_seconds = max(0.5, p1)
         s.parameters.num_workers = workers
         s.parameters.log_search_progress = log
-        st = s.Solve(m)
+        if on_improve is not None:
+            outer = self
+
+            class _CB(cp_model.CpSolverSolutionCallback):
+                def on_solution_callback(self):
+                    try:
+                        cols, ords = outer._extract(self)
+                        cols, ords = outer._compact(cols, ords)
+                        on_improve(Layout(cols, ords, int(round(self.ObjectiveValue())), 0, "FEASIBLE",
+                                          self.BestObjectiveBound(), time.time() - t0, outer.k))
+                    except Exception:  # a progress report must never break the search
+                        pass
+            st = s.Solve(m, _CB())
+        else:
+            st = s.Solve(m)
         if st not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-            raise RuntimeError(f"phase 1: {_status_name(st)} (k={self.k} too small?)")
+            if st == cp_model.INFEASIBLE:
+                raise RuntimeError(f"no valid layering with {self.k} columns")
+            raise RuntimeError(f"no solution found with {self.k} columns within the time limit")
         best = int(round(s.ObjectiveValue()))
         bound = s.BestObjectiveBound()
         status = _status_name(st)
@@ -302,11 +359,12 @@ class ExactSolver:
                  "conflicts": s.NumConflicts(), "branches": s.NumBranches()}
         sp = sum(abs(columns[e.src_table] - columns[e.dst_table]) for e in self.edges)
 
-        if phase2 and time.time() - t0 < time_limit:
+        left = time_limit - (time.time() - t0)
+        if phase2 and left > 0.5:
             hint2 = Layout(columns, orders, best, sp)
             m2, _, _, _ = self._build(hint=hint2, crossing_cap=best, minimize="span")
             s2 = cp_model.CpSolver()
-            s2.parameters.max_time_in_seconds = max(1.0, time_limit - (time.time() - t0))
+            s2.parameters.max_time_in_seconds = max(0.5, min(left, phase2_time) if phase2_time else left)
             s2.parameters.num_workers = workers
             st2 = s2.Solve(m2)
             if st2 in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -315,9 +373,5 @@ class ExactSolver:
                 stats["phase2_status"] = _status_name(st2)
                 stats["span_lower_bound"] = s2.BestObjectiveBound()
 
-        # renumber columns so the leftmost used column is 0, drop empty edge columns
-        used = [c for c in range(self.k) if any(k == "T" for k, _ in orders[c])]
-        lo_c, hi_c = min(used), max(used)
-        orders = orders[lo_c:hi_c + 1]
-        columns = {t: c - lo_c for t, c in columns.items()}
+        columns, orders = self._compact(columns, orders)
         return Layout(columns, orders, best, sp, status, bound, time.time() - t0, self.k, stats)

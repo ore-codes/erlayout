@@ -63,7 +63,7 @@
         <select id="k"><option value="">Auto</option></select>
       </label>
       <label>Time budget
-        <select id="time"><option value="30">30 s</option><option value="120" selected>2 min</option><option value="600">10 min</option><option value="1800">30 min</option></select>
+        <select id="time"><option value="30">30 s</option><option value="120">2 min</option><option value="300" selected>5 min</option><option value="600">10 min</option><option value="1800">30 min</option></select>
       </label>
     </div>
     <div class="row">
@@ -98,6 +98,7 @@ function fit() {
 function show() {
   const src = view === 'opt' ? result?.svg : base?.svg;
   $('#stage').innerHTML = src || '<div class="empty">Computing…</div>';
+  if (view === 'opt') drawn = result?.svg ?? null;
   fit();
 }
 $('#canvas').addEventListener('wheel', e => {
@@ -124,34 +125,65 @@ $('#dl').onclick = () => {
   a.download = view === 'opt' ? 'er-optimal.svg' : 'er-baseline.svg'; a.click();
 };
 
+let pollTimer = null, drawn = null;
+const PHASES = { starting: 'Starting', main: 'Searching', wider: 'Trying wider layouts', solve: 'Searching',
+                 bound: 'Proving a lower bound', compact: 'Trying narrower layouts' };
+function render(job, final) {
+  result = job;
+  const proven = final && job.status === 'OPTIMAL';
+  $('#badge').className = 'badge ' + (proven ? 'good' : 'warn');
+  $('#badge').textContent = final ? job.guarantee
+    : `${PHASES[job.phase] || 'Searching'}… best so far: ${job.crossings ?? '–'} crossings`
+      + (job.lower_bound ? `, at least ${job.lower_bound} unavoidable` : '')
+      + ` (${Math.round(job.elapsed)} of ${Math.round(job.time_limit)} s). The diagram updates as better layouts are found.`;
+  const stats = [
+    [job.crossings ?? '–', 'crossings'],
+    [base ? base.crossings : '–', 'baseline (barycenter)'],
+    [job.columns_used ?? '–', 'columns'],
+    [`${job.tables} / ${job.edges}`, 'tables / foreign keys'],
+    [final ? `${job.time_to_best} s` : (job.best_at != null ? `${job.best_at} s` : '–'), 'time to best layout']];
+  $('#stats').innerHTML = stats.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  $('#log').textContent = final
+    ? (job.history || []).map(h => `k=${h.k}: ${h.status || h.error}  crossings=${h.crossings ?? '–'}  ${h.seconds ?? ''}s`).join('\n')
+      + '\n\nIndependent checks: ' + JSON.stringify(job.verification)
+    : `phase: ${job.phase}, improvements so far: ${job.improvements}`;
+  $('#status').hidden = false;
+  if (job.svg && job.svg !== drawn && view === 'opt') {
+    const first = drawn === null; drawn = job.svg;
+    if (first) show(); else { const keep = [scale, tx, ty]; $('#stage').innerHTML = job.svg; [scale, tx, ty] = keep; applyT(); }
+    $('#dl').disabled = false;
+  }
+}
 $('#go').onclick = async () => {
   const body = { text: $('#schema').value, format: $('#format').value || null,
                  k: $('#k').value ? +$('#k').value : null, time_limit: +$('#time').value };
+  clearTimeout(pollTimer);
   $('#err').hidden = true; $('#go').disabled = true; $('#go').textContent = 'Solving…';
-  result = null; base = null; show();
+  result = null; base = null; drawn = null; show();
+  const post = (url) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   try {
-    const [r1, r2] = await Promise.all([
-      fetch('/api/layout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
-      fetch('/api/baseline', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })]);
-    if (!r1.ok) throw new Error((await r1.json()).detail || r1.statusText);
-    result = await r1.json(); base = r2.ok ? await r2.json() : null;
-    const proven = result.status === 'OPTIMAL';
-    $('#badge').className = 'badge ' + (proven ? 'good' : 'warn');
-    $('#badge').textContent = result.guarantee;
-    const stats = [
-      [result.crossings, 'crossings'],
-      [base ? base.crossings : '–', 'baseline (barycenter)'],
-      [result.columns_used, 'columns'],
-      [`${result.tables} / ${result.edges}`, 'tables / foreign keys'],
-      [result.seconds + ' s', 'solve time']];
-    $('#stats').innerHTML = stats.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
-    $('#log').textContent = result.history.map(h => `k=${h.k}: ${h.status || h.error}  crossings=${h.crossings ?? '–'}  bound=${h.lower_bound ?? '–'}  ${h.seconds ?? ''}s`).join('\n')
-      + '\n\nIndependent checks: ' + JSON.stringify(result.verification);
-    $('#status').hidden = false; $('#dl').disabled = false; show();
+    const r = await post('/api/jobs');
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    const { id } = await r.json();
+    post('/api/baseline').then(x => x.ok ? x.json() : null).then(b => { base = b; });
+    const poll = async () => {
+      try {
+        const job = await (await fetch(`/api/jobs/${id}`)).json();
+        if (job.done && job.error) throw new Error(job.error);
+        render(job, job.done);
+        if (job.done) { $('#go').disabled = false; $('#go').textContent = 'Lay out'; return; }
+      } catch (e) {
+        $('#err').textContent = e.message; $('#err').hidden = false;
+        $('#go').disabled = false; $('#go').textContent = 'Lay out'; return;
+      }
+      pollTimer = setTimeout(poll, 1500);
+    };
+    poll();
   } catch (e) {
     $('#err').textContent = e.message; $('#err').hidden = false;
     $('#stage').innerHTML = '<div class="empty">No layout.</div>';
-  } finally { $('#go').disabled = false; $('#go').textContent = 'Lay out'; }
+    $('#go').disabled = false; $('#go').textContent = 'Lay out';
+  }
 };
 </script>
 </body>

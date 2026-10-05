@@ -21,10 +21,12 @@ def twist_plus_chain() -> Schema:
 
 def test_certificate_found_for_embedded_twist():
     res = solve(twist_plus_chain(), time_limit=60, workers=1)
-    assert res["crossings"] == 1 and res["status"] == "OPTIMAL"
-    assert res["certificate"] is not None
-    assert set(res["certificate"]["tables"]) >= {"A", "B"}
-    assert "Certificate" in res["guarantee"]
+    assert res["crossings"] == 1 and res["global_optimal"]
+    assert "every layered drawing" in res["guarantee"]
+    s = twist_plus_chain()
+    lay = ExactSolver(s, 3).solve(time_limit=30, workers=1)
+    cert = certify(s, lay, 60, 1)
+    assert cert is not None and set(cert["tables"]) >= {"A", "B"} and cert["forced_crossings"] == 1
 
 
 @pytest.mark.parametrize("seed", range(60))

@@ -43,6 +43,24 @@ erlayout serve --port 8000                # web interface at http://127.0.0.1:80
 Options: `--format sql|dbml|json` (auto-detected), `--k-max`, `--certify-time`,
 `--workers` (defaults to all cores).
 
+### How automatic mode spends its time
+
+The search is *anytime*: a usable diagram is written to `-o` within about a
+second (the heuristic baseline), and the file is rewritten every time a better
+layout is found, so you can stop it whenever the result is good enough.
+
+1. **Main run**: one long fresh solve at a wide width (the larger of the
+   baseline's width and a third of the table count).
+2. **Certificate**: if that width was proven optimal, a small sub-schema proof
+   often certifies global optimality in seconds.
+3. **Wider**: a fresh solve two columns wider.
+4. **Lower bound**: sub-schema proofs, each capped so one hard proof cannot use
+   up the budget; the result says how many crossings are unavoidable.
+5. **Compact**: narrower widths with the same number of crossings.
+
+The web interface runs the same search as a background job and redraws the
+diagram as better layouts arrive.
+
 ## Results (2 vCPU machine)
 
 | Schema | Tables / FKs | Baseline crossings | erlayout | Guarantee |
