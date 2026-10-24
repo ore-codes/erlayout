@@ -8,6 +8,10 @@ of every table jointly with an exact constraint solver (OR-Tools CP-SAT). It
 returns either a layout proven optimal or the best one found together with a
 proven lower bound.
 
+The result can be exported to draw.io, Excalidraw or Mermaid, so it can serve
+as a starting layout you keep editing. Coming from dbdiagram.io? See
+[docs/dbdiagram.md](docs/dbdiagram.md).
+
 Author: Oreoluwa Adeleye.
 
 ## What "optimal" means here
@@ -54,6 +58,29 @@ erlayout serve --port 8000                # web interface at http://127.0.0.1:80
 
 Options: `--format sql|dbml|json` (auto-detected), `--k-max`, `--certify-time`,
 `--workers` (defaults to all cores).
+
+### Export for editing
+
+`-o` can be given more than once, and its extension picks the format:
+
+```bash
+erlayout layout schema.dbml -o er.drawio -o er.excalidraw -o er.mmd -o er.svg
+```
+
+* **draw.io** (`.drawio`): tables as draw.io tables, links attached to their
+  rows with crow's-foot ends, so they follow a table you drag.  A split schema
+  gets one page per group.
+* **Excalidraw** (`.excalidraw`): tables grouped, links bound to them; a split
+  schema gets one frame per group.
+* **Mermaid** (`.mmd`): an `erDiagram` with every table and relationship.
+  Mermaid has no positions, so it lays the diagram out itself; only the
+  declaration order comes from erlayout.
+
+For a split schema, `--each-group` also writes every group to its own file.
+In the web interface, **Export as** picks the format and **Diagrams** picks all
+groups in one file, one group, or each group as its own file in a zip.  The
+same is available over HTTP as
+`GET /api/jobs/{id}/export/{svg|drawio|excalidraw|mermaid}?group={n|each}`.
 
 ### Docker and Railway
 
@@ -154,6 +181,7 @@ barycenter sweeps) in the same drawing model.
 | `erlayout/geometry.py` | coordinate LP and geometric verifier |
 | `erlayout/render.py` | SVG output |
 | `erlayout/split.py` | grouping of large schemas, hub detection, row tags |
+| `erlayout/export.py` | draw.io, Excalidraw and Mermaid export |
 | `erlayout/api.py`, `cli.py`, `web.py`, `static/` | entry points |
 | `bench/` | benchmark, certificate search and UI test scripts; `bench/out/results.jsonl` holds every run reported in the paper |
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections import Counter
 
 import sqlglot
 from sqlglot import exp
@@ -127,46 +128,263 @@ def parse_sql(text: str, dialect: str | None = None) -> Schema:
     return Schema(list(tables.values()), edges).validate()
 
 
-_DBML_TABLE = re.compile(r"Table\s+(\"?[\w.]+\"?)(?:\s+as\s+\w+)?\s*(?:\[[^\]]*\])?\s*\{(.*?)\n\s*\}", re.S | re.I)
-_DBML_REF = re.compile(r"Ref(?:\s+\w+)?\s*:\s*\"?([\w]+)\"?\.\"?([\w]+)\"?\s*([<>-]|<>)\s*\"?([\w]+)\"?\.\"?([\w]+)\"?", re.I)
-_INLINE_REF = re.compile(r"ref\s*:\s*([<>-]|<>)\s*\"?([\w]+)\"?\.\"?([\w]+)\"?", re.I)
+# ---------------------------------------------------------------- DBML
+# A small tokenizer and parser for the DBML that dbdiagram.io writes: tables
+# with aliases, schema-qualified and quoted names, settings, notes and index
+# blocks; inline, short and long refs, composite refs and TablePartials.
+# Enums, TableGroups, Project and sticky notes carry nothing a layout needs and
+# are skipped.
+_DBML_TOKEN = re.compile(r"""
+    (?P<ws>[ \t\r\f]+) | (?P<nl>\n) | (?P<comment>//[^\n]*|/\*.*?\*/)
+  | (?P<str3>'{3}.*?'{3}) | (?P<str>'(?:\\.|[^'\\])*') | (?P<qname>"(?:\\.|[^"\\])*")
+  | (?P<expr>`[^`]*`) | (?P<op><>) | (?P<word>[^\W]+) | (?P<punct>\S)
+""", re.S | re.X)
+
+
+def _dbml_tokens(text: str) -> list[tuple[str, str]]:
+    out = []
+    for m in _DBML_TOKEN.finditer(text):
+        kind = m.lastgroup
+        if kind in ("ws", "comment"):
+            continue
+        v = m.group()
+        if kind == "qname":
+            kind, v = "word", v[1:-1]
+        out.append((kind, v))
+    return out
+
+
+class _Dbml:
+    def __init__(self, text: str):
+        self.t = _dbml_tokens(text)
+        self.i = 0
+
+    def peek(self, k=0):
+        j = self.i + k
+        return self.t[j] if j < len(self.t) else ("eof", "")
+
+    def next(self):
+        tok = self.peek()
+        self.i += 1
+        return tok
+
+    def skip_nl(self):
+        while self.peek()[0] == "nl":
+            self.i += 1
+
+    def is_(self, v, k=0):
+        return self.peek(k)[1] == v and self.peek(k)[0] in ("punct", "op")
+
+    def word(self, v, k=0):
+        return self.peek(k)[0] == "word" and self.peek(k)[1].lower() == v
+
+    def expect(self, v):
+        self.skip_nl()
+        kind, got = self.next()
+        if got != v:
+            raise ValueError(f"DBML: expected {v!r}, found {got!r}")
+
+    def balanced(self, open_, close):
+        """Tokens inside a balanced open_ ... close, the brackets consumed."""
+        self.expect(open_)
+        depth, out = 1, []
+        while True:
+            tok = self.next()
+            if tok[0] == "eof":
+                raise ValueError(f"DBML: missing {close!r}")
+            if tok[1] == open_ and tok[0] == "punct":
+                depth += 1
+            elif tok[1] == close and tok[0] == "punct":
+                depth -= 1
+                if depth == 0:
+                    return out
+            out.append(tok)
+
+    def name(self) -> list[str]:
+        """A possibly qualified name: a.b."c d" -> ['a', 'b', 'c d']."""
+        self.skip_nl()
+        kind, v = self.next()
+        if kind != "word":
+            raise ValueError(f"DBML: expected a name, found {v!r}")
+        parts = [v]
+        while self.is_(".") and self.peek(1)[0] == "word":
+            self.i += 1
+            parts.append(self.next()[1])
+        return parts
+
+    def endpoint(self) -> tuple[list[str], list[str]]:
+        """table.column or table.(col1, col2), the table possibly schema-qualified."""
+        parts = self.name()
+        if self.is_(".") and self.is_("(", 1):
+            self.i += 1
+            cols = [v for k, v in self.balanced("(", ")") if k == "word"]
+            return parts, cols
+        if len(parts) < 2:
+            raise ValueError(f"DBML: expected table.column, found {'.'.join(parts)!r}")
+        return parts[:-1], parts[-1:]
+
+
+def _split_commas(tokens):
+    parts, cur, depth = [], [], 0
+    for tok in tokens:
+        if tok[1] in "([" and tok[0] == "punct":
+            depth += 1
+        elif tok[1] in ")]" and tok[0] == "punct":
+            depth -= 1
+        if tok[1] == "," and tok[0] == "punct" and depth == 0:
+            parts.append(cur)
+            cur = []
+        elif tok[0] != "nl":
+            cur.append(tok)
+    parts.append(cur)
+    return [p for p in parts if p]
 
 
 def parse_dbml(text: str) -> Schema:
-    tables: list[Table] = []
-    edges: list[Edge] = []
-    for m in _DBML_TABLE.finditer(text):
-        tname = m.group(1).strip('"').split(".")[-1]
-        t = Table(tname)
-        for line in m.group(2).splitlines():
-            line = line.strip()
-            if not line or line.startswith("//") or line.lower().startswith(("indexes", "note")):
+    """Parse DBML (https://dbml.dbdiagram.io).  Relationship operators:
+    a.x > b.y and b.y < a.x mean a.x references b.y; one-to-one (-) and
+    many-to-many (<>) links are drawn from the left side to the right."""
+    P = _Dbml(text)
+    tables: list[tuple[list[str], str | None, list]] = []    # (qualified name, alias, items)
+    partials: dict[str, list] = {}
+    refs: list[tuple] = []          # (src table parts, src columns, dst table parts, dst columns)
+
+    def rel(a, op, b):
+        refs.append((*b, *a) if op == "<" else (*a, *b))
+
+    def body() -> list:
+        """Columns of a Table or TablePartial: ('col', Column, inline refs) or ('partial', name)."""
+        items = []
+        P.expect("{")
+        while True:
+            P.skip_nl()
+            kind, v = P.peek()
+            if kind == "eof":
+                raise ValueError("DBML: missing '}'")
+            if P.is_("}"):
+                P.i += 1
+                return items
+            if P.is_("~"):
+                P.i += 1
+                items.append(("partial", P.next()[1].lower()))
                 continue
-            if line in ("{", "}"):
+            if kind == "word" and P.is_("{", 1):         # indexes { }, checks { }, Note { }
+                P.i += 1
+                P.balanced("{", "}")
                 continue
-            parts = line.split()
-            if len(parts) < 2:
+            if kind == "word" and v.lower() == "note" and P.is_(":", 1):
+                P.i += 2
+                P.next()
                 continue
-            cname = parts[0].strip('"')
-            ctype = parts[1].split("[")[0]
-            opts = line[line.find("["):] if "[" in line else ""
-            col = Column(cname, ctype, pk=bool(re.search(r"\b(pk|primary key)\b", opts, re.I)))
-            t.columns.append(col)
-            im = _INLINE_REF.search(opts)
-            if im:
-                op, dt, dc = im.groups()
-                if op == "<":
-                    edges.append(Edge(dt, dc, tname, cname))
-                else:
-                    edges.append(Edge(tname, cname, dt, dc))
-        tables.append(t)
-    for m in _DBML_REF.finditer(text):
-        a_t, a_c, op, b_t, b_c = m.groups()
-        if op == "<":
-            edges.append(Edge(b_t, b_c, a_t, a_c))
+            # a column: name, type up to the settings or the end of the line
+            cname = P.next()[1]
+            type_parts = []
+            while P.peek()[0] not in ("nl", "eof") and not P.is_("}"):
+                if P.is_("[") and not P.is_("]", 1):
+                    break
+                type_parts.append(P.next()[1])
+            ctype = "".join(type_parts) if all(re.fullmatch(r"[\w.]+|[()\[\],]", x) for x in type_parts) \
+                else " ".join(type_parts)
+            settings = _split_commas(P.balanced("[", "]")) if P.is_("[") else []
+            col = Column(cname, ctype.lower())
+            inline = []
+            for st in settings:
+                words = [v.lower() for k, v in st if k == "word"]
+                if words[:1] == ["pk"] or words[:2] == ["primary", "key"]:
+                    col.pk = True
+                elif words[:1] == ["ref"] and len(st) > 2 and st[1][1] == ":":
+                    op = st[2][1]
+                    sub = _Dbml("")
+                    sub.t = st[3:]
+                    inline.append((op, sub.endpoint()))
+            items.append(("col", col, inline))
+
+    while True:
+        P.skip_nl()
+        kind, v = P.peek()
+        if kind == "eof":
+            break
+        low = v.lower() if kind == "word" else ""
+        if low in ("table", "tablepartial"):
+            P.i += 1
+            qname = P.name()
+            alias = None
+            if P.word("as"):
+                P.i += 1
+                alias = P.next()[1]
+            if P.is_("["):
+                P.balanced("[", "]")
+            items = body()
+            if low == "table":
+                tables.append((qname, alias, items))
+            else:
+                partials[qname[-1].lower()] = items
+        elif low == "ref":
+            P.i += 1
+            if P.peek()[0] == "word":                   # optional ref name
+                P.i += 1
+            if P.is_(":"):
+                P.i += 1
+                a = P.endpoint()
+                op = P.next()[1]
+                rel(a, op, P.endpoint())
+                if P.is_("["):
+                    P.balanced("[", "]")
+            else:
+                inner = _Dbml("")
+                inner.t = P.balanced("{", "}")
+                while True:
+                    inner.skip_nl()
+                    if inner.peek()[0] == "eof":
+                        break
+                    a = inner.endpoint()
+                    op = inner.next()[1]
+                    rel(a, op, inner.endpoint())
+                    if inner.is_("["):
+                        inner.balanced("[", "]")
         else:
-            edges.append(Edge(a_t, a_c, b_t, b_c))
-    return Schema(tables, edges).validate()
+            # Project, Enum, TableGroup, Note, Records ... : skip to the end of the block
+            while not P.is_("{") and P.peek()[0] != "eof":
+                P.i += 1
+            if P.peek()[0] != "eof":
+                P.balanced("{", "}")
+
+    # short names unless two schemas share one; aliases and schema-qualified refs resolve to them
+    short = Counter(q[-1].lower() for q, _, _ in tables)
+    lookup: dict[str, str] = {}
+    out_tables: list[Table] = []
+    for qname, alias, items in tables:
+        tname = qname[-1] if short[qname[-1].lower()] == 1 else ".".join(qname)
+        for key in {".".join(qname).lower(), tname.lower(), "public." + qname[-1].lower()} | (
+                {alias.lower()} if alias else set()):
+            lookup.setdefault(key, tname)
+        if len(qname) == 1:
+            lookup.setdefault(qname[0].lower(), tname)
+        t = Table(tname)
+        own = {it[1].name.lower() for it in items if it[0] == "col"}
+        expanded = []
+        for it in items:
+            if it[0] == "partial":
+                expanded += [x for x in partials.get(it[1], []) if x[0] == "col" and x[1].name.lower() not in own]
+            else:
+                expanded.append(it)
+        for _, col, inline in expanded:
+            t.columns.append(Column(col.name, col.type, col.pk))
+            for op, b in inline:
+                rel(([tname], [col.name]), op, b)
+        out_tables.append(t)
+
+    edges = []
+    for a_t, a_c, b_t, b_c in refs:
+        st = lookup.get(".".join(a_t).lower(), a_t[-1])
+        dt = lookup.get(".".join(b_t).lower(), b_t[-1])
+        for sc, dc in zip(a_c, b_c):
+            edges.append(Edge(st, sc, dt, dc))
+    return Schema(out_tables, edges).validate()
+
+
+_DBML_START = re.compile(r"^\s*(Table|TablePartial)\s+[\"\w.]+[\"\w. ]*?(\s+as\s+\w+)?\s*(\[[^\]]*\])?\s*\{",
+                         re.M | re.I)
 
 
 def parse_any(text: str, fmt: str | None = None) -> Schema:
@@ -175,7 +393,7 @@ def parse_any(text: str, fmt: str | None = None) -> Schema:
     if fmt is None:
         if s.startswith("{"):
             fmt = "json"
-        elif re.search(r"^\s*Table\s+[\"\w.]+\s*(\[[^\]]*\])?\s*\{", text, re.M | re.I) and "create table" not in text.lower():
+        elif _DBML_START.search(text) and "create table" not in text.lower():
             fmt = "dbml"
         else:
             fmt = "sql"

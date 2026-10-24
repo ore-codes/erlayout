@@ -2,6 +2,7 @@
 
   erlayout layout schema.sql -o diagram.svg [--k 5] [--time 120] [--json result.json]
   erlayout layout big.sql --split on --hide-hubs auto --max-group 15
+  erlayout layout schema.dbml -o diagram.drawio -o diagram.excalidraw -o diagram.mmd [--each-group]
   erlayout serve [--port 8000]
 """
 from __future__ import annotations
@@ -11,8 +12,10 @@ import json
 import logging
 import os
 import sys
+from pathlib import Path
 
-from .api import resolve_hubs, solve, solve_split, verify_and_render, wants_split
+from .api import resolve_hubs, solve, solve_split, verify_and_draw, wants_split
+from .export import FORMATS, drawing, export, pick, slug
 from .parse import parse_any
 
 
@@ -22,7 +25,11 @@ def main(argv=None) -> int:
 
     lp = sub.add_parser("layout", help="lay out a schema file (SQL DDL, DBML or JSON)")
     lp.add_argument("schema")
-    lp.add_argument("-o", "--output", default="diagram.svg")
+    lp.add_argument("-o", "--output", action="append",
+                    help="output file, repeatable; the extension picks the format: .svg, .drawio, "
+                         ".excalidraw or .mmd (Mermaid) (default: diagram.svg)")
+    lp.add_argument("--each-group", action="store_true",
+                    help="with a split schema, also write each diagram to its own file next to every output")
     lp.add_argument("--format", choices=["sql", "dbml", "json"])
     lp.add_argument("--k", type=int, help="number of columns (default: anytime search from the baseline width outward)")
     lp.add_argument("--k-max", type=int, help="largest column count to try in automatic mode")
@@ -55,6 +62,12 @@ def main(argv=None) -> int:
         uvicorn.run(app, host=a.host, port=a.port)
         return 0
 
+    outputs = a.output or ["diagram.svg"]
+    by_ext = {ext: fmt for fmt, ext in FORMATS.items()} | {".mermaid": "mermaid", ".md": "mermaid"}
+    for o in outputs:
+        if Path(o).suffix.lower() not in by_ext:
+            ap.error(f"{o}: unknown output format; use .svg, .drawio, .excalidraw or .mmd")
+
     text = open(a.schema, encoding="utf-8").read()
     schema = parse_any(text, a.format)
     print(f"{len(schema.tables)} tables, {len(schema.edges)} foreign keys", file=sys.stderr)
@@ -65,23 +78,31 @@ def main(argv=None) -> int:
         ap.error(str(exc))
     split = wants_split(schema, a.split, hubs, a.max_group)
 
+    def write(d, final=False):
+        """Every output, from the drawing; per-group files only at the end."""
+        for o in outputs:
+            fmt = by_ext[Path(o).suffix.lower()]
+            Path(o).write_text(export(fmt, d, schema), encoding="utf-8")
+            if final and a.each_group and len(d["sections"]) > 1:
+                base = Path(o)
+                for i, sec in enumerate(d["sections"], 1):
+                    out = base.with_name(f"{base.stem}-{i:02d}-{slug(sec['name'] or 'diagram')}{base.suffix}")
+                    out.write_text(export(fmt, pick(d, i), schema), encoding="utf-8")
+        return ", ".join(outputs)
+
     def progress(ev):
         t = f"[{ev['elapsed']:6.1f}s]"
         if ev["kind"] == "improved" and split:
-            with open(a.output, "w", encoding="utf-8") as f:
-                f.write(ev["svg"])
-            print(f"{t} {ev['crossings']} crossings in total -> {a.output}", file=sys.stderr, flush=True)
+            print(f"{t} {ev['crossings']} crossings in total -> {write(ev['drawing'])}", file=sys.stderr, flush=True)
         elif ev["kind"] == "phase" and "group" in ev:
             print(f"{t} diagram {ev['group']} of {ev['groups']}", file=sys.stderr, flush=True)
         elif ev["kind"] == "improved":
             # write every improvement straight away, so a usable file exists early
             try:
-                c, _, svg = verify_and_render(schema, ev["layout"])
+                c, _, _, sec = verify_and_draw(schema, ev["layout"])
             except AssertionError:
                 return
-            with open(a.output, "w", encoding="utf-8") as f:
-                f.write(svg)
-            print(f"{t} {c} crossings in {ev['columns']} columns ({ev['source']}) -> {a.output}",
+            print(f"{t} {c} crossings in {ev['columns']} columns ({ev['source']}) -> {write(drawing([sec]))}",
                   file=sys.stderr, flush=True)
         elif ev["kind"] == "phase":
             print(f"{t} {ev['phase']}" + (f" {ev['k']} columns" if "k" in ev else ""), file=sys.stderr, flush=True)
@@ -96,11 +117,10 @@ def main(argv=None) -> int:
         res = solve(schema, k=a.k, time_limit=a.time, workers=a.workers, k_max=a.k_max,
                     certify_time=a.certify_time, on_progress=progress,
                     reorder_rows=a.reorder_rows, pin_pk=not a.free_pk)
-    with open(a.output, "w", encoding="utf-8") as f:
-        f.write(res["svg"])
+    wrote = write(res["drawing"], final=True)
     if a.json:
         with open(a.json, "w", encoding="utf-8") as f:
-            json.dump({k: v for k, v in res.items() if k != "svg"}, f, indent=2)
+            json.dump({k: v for k, v in res.items() if k not in ("svg", "drawing")}, f, indent=2)
     print(f"best found after {res['time_to_best']}s of {res['seconds']}s", file=sys.stderr)
     print(res["guarantee"])
     for g in res.get("groups", []):
@@ -109,7 +129,7 @@ def main(argv=None) -> int:
     for t, order in res.get("row_order", {}).items():
         print(f"  reordered {t}: {', '.join(order)}")
     print(f"baseline (barycenter): {res['baseline']['crossings']} crossings; "
-          f"verified: {res['verification']}; wrote {a.output}")
+          f"verified: {res['verification']}; wrote {wrote}")
     return 0
 
 

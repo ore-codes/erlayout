@@ -10,10 +10,11 @@ import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 from pydantic import BaseModel
 
-from .api import baseline_split, baseline_svg, resolve_hubs, solve, solve_split, verify_and_render, wants_split
+from .api import baseline_split, baseline_svg, resolve_hubs, solve, solve_split, verify_and_draw, wants_split
+from .export import FORMATS, drawing, export, export_each, pick
 from .parse import parse_any
 
 STATIC = Path(__file__).parent / "static"
@@ -147,6 +148,11 @@ _JOBS_LOCK = threading.Lock()
 MAX_JOBS = 20
 
 
+def _names(d) -> list[str]:
+    """What the page lists in its diagram picker."""
+    return [s["name"] or "Diagram" for s in d["sections"]]
+
+
 def _run_job(job_id: str, schema, k, t, opts, split):
     job = JOBS[job_id]
 
@@ -159,15 +165,17 @@ def _run_job(job_id: str, schema, k, t, opts, split):
                     job.update(group=ev["group"], groups=ev["groups"])
         if ev["kind"] == "improved" and split:   # solve_split sends the drawing, already verified
             with _JOBS_LOCK:
-                job.update(crossings=ev["crossings"], svg=ev["svg"],
+                job.update(crossings=ev["crossings"], svg=ev["svg"], _drawing=ev["drawing"],
+                           diagrams=_names(ev["drawing"]),
                            improvements=job["improvements"] + 1, best_at=ev["elapsed"])
         elif ev["kind"] == "improved":
             try:
-                c, check, svg = verify_and_render(schema, ev["layout"])
+                c, check, svg, sec = verify_and_draw(schema, ev["layout"])
             except AssertionError:
                 return
             with _JOBS_LOCK:
                 job.update(crossings=c, columns_used=ev["columns"], svg=svg, verification=check,
+                           _drawing=drawing([sec]), diagrams=["Diagram"],
                            improvements=job["improvements"] + 1, best_at=ev["elapsed"])
         elif ev["kind"] == "bound":
             with _JOBS_LOCK:
@@ -180,6 +188,8 @@ def _run_job(job_id: str, schema, k, t, opts, split):
             res = solve(schema, k=k, time_limit=t, workers=WORKERS, on_progress=progress, **opts)
         res["tables"] = len(schema.tables)
         res["edges"] = len(schema.edges)
+        res["_drawing"] = res.pop("drawing")
+        res["diagrams"] = _names(res["_drawing"])
         with _JOBS_LOCK:
             job.update(res, done=True, phase="done")
     except Exception as exc:  # report, never crash the server
@@ -209,7 +219,7 @@ def start_job(req: LayoutRequest):
         JOBS[job_id] = {"id": job_id, "done": False, "phase": "starting", "started": time.time(),
                         "time_limit": t, "elapsed": 0.0, "crossings": None, "svg": None,
                         "improvements": 0, "lower_bound": 0, "tables": len(schema.tables),
-                        "edges": len(schema.edges), "split": bool(split)}
+                        "edges": len(schema.edges), "split": bool(split), "_schema": schema}
     log.info("job %s: %d tables, %d foreign keys, %.0fs budget", job_id, len(schema.tables), len(schema.edges), t)
     threading.Thread(target=_run_job, args=(job_id, schema, req.k, t, opts, split), daemon=True).start()
     return {"id": job_id}
@@ -221,7 +231,36 @@ def get_job(job_id: str):
         job = JOBS.get(job_id)
         if job is None:
             raise HTTPException(404, "no such job")
-        out = dict(job)
+        out = {k: v for k, v in job.items() if not k.startswith("_")}   # drawings are fetched via export
     if not out["done"]:
         out["elapsed"] = round(time.time() - out["started"], 1)
     return out
+
+
+@app.get("/api/jobs/{job_id}/export/{fmt}")
+def export_job(job_id: str, fmt: str, group: str | None = None):
+    """The job's best layout so far as svg, drawio, excalidraw or mermaid.
+    group=N gives diagram N of a split schema on its own; group=each gives a
+    zip with one file per diagram."""
+    if fmt not in FORMATS:
+        raise HTTPException(400, f"format must be one of {', '.join(FORMATS)}")
+    with _JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if job is None:
+            raise HTTPException(404, "no such job")
+        d, schema = job.get("_drawing"), job["_schema"]
+    if d is None:
+        raise HTTPException(409, "no layout yet")
+    name = "er-layout"
+    if group == "each":
+        return Response(export_each(fmt, d, schema), media_type="application/zip",
+                        headers={"content-disposition": f'attachment; filename="{name}-{fmt}.zip"'})
+    if group:
+        try:
+            d = pick(d, int(group))
+        except ValueError as exc:
+            raise HTTPException(400, f"group must be a diagram number or 'each': {exc}") from exc
+        name += f"-group{int(group)}"
+    media = {"svg": "image/svg+xml", "excalidraw": "application/json"}.get(fmt, "text/plain")
+    return Response(export(fmt, d, schema), media_type=media,
+                    headers={"content-disposition": f'attachment; filename="{name}{FORMATS[fmt]}"'})

@@ -19,6 +19,7 @@ import time
 
 from .certify import lower_bound
 from .crossings import count_crossings
+from .export import drawing, section
 from .geometry import assign, geometric_check
 from .heuristic import heuristic
 from .model import Schema
@@ -60,16 +61,22 @@ def guarantee(crossings: int, columns: int, width_proven: int | None, lb: int, c
     return " ".join(parts)
 
 
-def verify_and_render(schema: Schema, lay: Layout) -> tuple[int, dict, str]:
-    """Independent recount + geometric check + SVG.  Raises on any mismatch.
-    Uses the layout's own row order when rows were reordered."""
+def verify_and_draw(schema: Schema, lay: Layout) -> tuple[int, dict, str, dict]:
+    """Independent recount + geometric check, then the SVG and the drawing
+    the editable exports are made from (export.section).  Raises on any
+    mismatch.  Uses the layout's own row order when rows were reordered."""
     schema = schema.with_row_order(lay.rows)
     recount = count_crossings(schema, lay.columns, lay.orders)
     geo = assign(schema, lay)
     check = geometric_check(schema, geo)
     if check["crossings"] != recount or check["edges_through_tables"] or check["table_overlaps"]:
         raise AssertionError(f"verification failed: recount={recount} geo={check}")
-    return recount, check, render_svg(schema, geo)
+    svg = render_svg(schema, geo)
+    return recount, check, svg, section(schema, geo, svg)
+
+
+def verify_and_render(schema: Schema, lay: Layout) -> tuple[int, dict, str]:
+    return verify_and_draw(schema, lay)[:3]
 
 
 class _Search:
@@ -213,7 +220,7 @@ def solve(schema: Schema, k: int | None = None, time_limit: float = 60.0, worker
     best = S.best
     # every exact run was skipped because its model could not be built in time
     too_large = bool(S.history) and all("to build" in h.get("error", "") for h in S.history)
-    recount, check, svg = verify_and_render(schema, best)
+    recount, check, svg, sec = verify_and_draw(schema, best)
     wp = S.width_proven()
     cert = S.lb if S.lb["bound"] >= best.crossings > 0 else None
     global_opt = best.crossings == 0 or cert is not None or (wp or 0) >= n
@@ -241,6 +248,7 @@ def solve(schema: Schema, k: int | None = None, time_limit: float = 60.0, worker
         "row_order": best.rows or {},
         "rows_reordered": reorder_rows,
         "svg": svg,
+        "drawing": drawing([sec]),
     }
 
 
@@ -272,7 +280,7 @@ def resolve_hubs(schema: Schema, hubs) -> list[str]:
     return [known[h.lower()] for h in names]
 
 
-def _panel_svg(tables: list) -> str:
+def _panel(tables: list) -> tuple[str, dict]:
     """Tables with no drawn link, packed into columns of similar height."""
     from .geometry import table_height
     panel = Schema(list(tables), [])
@@ -285,7 +293,9 @@ def _panel_svg(tables: list) -> str:
     cols = [c for c in cols if c]
     lay = Layout({t.name: i for i, c in enumerate(cols) for t in c},
                  [[("T", t.name) for t in sorted(c, key=lambda t: t.name)] for c in cols], 0, 0, "PANEL")
-    return render_svg(panel, assign(panel, lay))
+    geo = assign(panel, lay)
+    svg = render_svg(panel, geo)
+    return svg, section(panel, geo, svg)
 
 
 def _group_heading(sp_group, res: dict | None, crossings: int) -> str:
@@ -300,24 +310,29 @@ def _group_heading(sp_group, res: dict | None, crossings: int) -> str:
     return f"{sp_group.title}  ·  {_n(crossings)}, {state}"
 
 
-def _compose(sp, svgs, crossings, results) -> str:
-    parts = [(_group_heading(g, results[i], crossings[i]), svgs[i]) for i, g in enumerate(sp.groups)]
+def _compose(sp, sections, crossings, results, panel=None) -> tuple[str, dict]:
+    """The stacked SVG and the drawing of a split schema."""
+    secs = [dict(sections[i], name=g.title, title=_group_heading(g, results[i], crossings[i]))
+            for i, g in enumerate(sp.groups)]
     if sp.loose:
-        what = "hidden hubs and tables" if sp.hubs else "Tables"
-        parts.append((f"{what[0].upper() + what[1:]} without drawn links ({len(sp.loose)})", _panel_svg(sp.loose)))
-    return stack_svgs(parts)
+        what = "Hidden hubs and tables" if sp.hubs else "Tables"
+        name = f"{what} without drawn links"
+        secs.append(dict(panel or _panel(sp.loose)[1], name=name, title=f"{name} ({len(sp.loose)})"))
+    return stack_svgs([(s["title"], s["svg"]) for s in secs]), drawing(secs)
 
 
 def baseline_split(schema: Schema, max_group: int = 15, hubs=None) -> tuple[dict, str]:
     sp = split_schema(schema, max_group, resolve_hubs(schema, hubs))
-    svgs, crossings, geo = [], [], {"crossings": 0, "edges_through_tables": 0, "table_overlaps": 0}
+    secs, crossings, geo = [], [], {"crossings": 0, "edges_through_tables": 0, "table_overlaps": 0}
     for g in sp.groups:
-        stats, svg = baseline_svg(g.schema)
-        svgs.append(svg)
-        crossings.append(stats["crossings"])
-        for key in geo:
-            geo[key] += stats["geo"][key]
-    return {"crossings": sum(crossings), "geo": geo}, _compose(sp, svgs, crossings, [None] * len(svgs))
+        lay = heuristic(g.schema)
+        gg = assign(g.schema, lay)
+        svg = render_svg(g.schema, gg)
+        secs.append(section(g.schema, gg, svg))
+        crossings.append(lay.crossings)
+        for key, v in geometric_check(g.schema, gg).items():
+            geo[key] += v
+    return {"crossings": sum(crossings), "geo": geo}, _compose(sp, secs, crossings, [None] * len(secs))[0]
 
 
 def solve_split(schema: Schema, time_limit: float = 60.0, workers: int = 8, max_group: int = 15,
@@ -325,17 +340,18 @@ def solve_split(schema: Schema, time_limit: float = 60.0, workers: int = 8, max_
     """Lay out each group of a split schema (split.py) as its own diagram.
     Every group gets a heuristic drawing at once; the groups are then solved
     one after the other, each with a share of the remaining time in proportion
-    to its size.  on_progress receives {"kind": "improved", "svg", "crossings",
+    to its size.  on_progress receives {"kind": "improved", "svg", "drawing", "crossings",
     "elapsed"} with the combined drawing, and {"kind": "phase", ...}."""
     t0 = time.time()
     sp = split_schema(schema, max_group, resolve_hubs(schema, hubs))
     G = len(sp.groups)
     lock = threading.Lock()
-    svgs, crossings, results = [None] * G, [0] * G, [None] * G
+    secs, crossings, results = [None] * G, [0] * G, [None] * G
+    panel = _panel(sp.loose)[1] if sp.loose else None
     base_total = 0
     for i, g in enumerate(sp.groups):
         lay = heuristic(g.schema)
-        crossings[i], _, svgs[i] = verify_and_render(g.schema, lay)
+        crossings[i], _, _, secs[i] = verify_and_draw(g.schema, lay)
         base_total += crossings[i]
 
     def emit(kind, **kw):
@@ -348,8 +364,8 @@ def solve_split(schema: Schema, time_limit: float = 60.0, workers: int = 8, max_
 
     def publish():
         with lock:
-            svg, total = _compose(sp, svgs, crossings, results), sum(crossings)
-        emit("improved", svg=svg, crossings=total)
+            (svg, d), total = _compose(sp, secs, crossings, results, panel), sum(crossings)
+        emit("improved", svg=svg, drawing=d, crossings=total)
 
     publish()
     weight = [len(g.schema.tables) * max(1, len(g.schema.solver_edges())) for g in sp.groups]
@@ -365,30 +381,31 @@ def solve_split(schema: Schema, time_limit: float = 60.0, workers: int = 8, max_
             if ev["kind"] != "improved":
                 return
             try:
-                c, _, svg = verify_and_render(g.schema, ev["layout"])
+                c, _, _, sec = verify_and_draw(g.schema, ev["layout"])
             except AssertionError:
                 return
             with lock:
                 if c >= crossings[i]:
                     return
-                crossings[i], svgs[i] = c, svg
+                crossings[i], secs[i] = c, sec
             publish()
 
         res = solve(g.schema, time_limit=share, workers=workers, on_progress=progress,
                     reorder_rows=reorder_rows, pin_pk=pin_pk)
         with lock:
-            results[i], crossings[i], svgs[i] = res, res["crossings"], res["svg"]
+            results[i], crossings[i], secs[i] = res, res["crossings"], res["drawing"]["sections"][0]
         publish()
 
     total = sum(crossings)
+    svg, d = _compose(sp, secs, crossings, results, panel)
     proven = sum(1 for r in results if r["global_optimal"])
     verification = {"model_recount": sum(r["verification"]["model_recount"] for r in results),
                     "crossings": sum(r["verification"]["crossings"] for r in results),
                     "edges_through_tables": sum(r["verification"]["edges_through_tables"] for r in results),
                     "table_overlaps": sum(r["verification"]["table_overlaps"] for r in results)}
     drawn = sum(len(g.schema.tables) for g in sp.groups)
-    hidden = f", {len(sp.hubs)} hub tables hidden ({', '.join(sp.hubs)})" if sp.hubs else ""
-    summary = (f"Split into {_n(G, 'diagram')} ({drawn} tables) plus {len(sp.loose)} tables without drawn links"
+    hidden = f", {_n(len(sp.hubs), 'hub table')} hidden ({', '.join(sp.hubs)})" if sp.hubs else ""
+    summary = (f"Split into {_n(G, 'diagram')} ({drawn} tables) plus {_n(len(sp.loose), 'table')} without drawn links"
                f"{hidden}. Links between diagrams are shown as row tags, not lines. "
                f"{proven} of {G} diagrams proven optimal; {_n(total)} in total.")
     return {
@@ -412,5 +429,6 @@ def solve_split(schema: Schema, time_limit: float = 60.0, workers: int = 8, max_
         "seconds": round(time.time() - t0, 2),
         "time_to_best": round(time.time() - t0, 2),
         "row_order": {t: o for r in results for t, o in (r.get("row_order") or {}).items()},
-        "svg": _compose(sp, svgs, crossings, results),
+        "svg": svg,
+        "drawing": d,
     }

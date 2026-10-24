@@ -87,7 +87,18 @@
     </div>
     <div class="row">
       <button class="primary" id="go">Lay out</button>
-      <button id="dl" disabled>Download SVG</button>
+      <label>Export as
+        <select id="fmt">
+          <option value="svg">SVG picture</option>
+          <option value="drawio">draw.io (editable)</option>
+          <option value="excalidraw">Excalidraw (editable)</option>
+          <option value="mermaid">Mermaid (tables and links, no positions)</option>
+        </select>
+      </label>
+      <label id="whichl" hidden>Diagrams
+        <select id="which"></select>
+      </label>
+      <button id="dl" disabled>Download</button>
     </div>
     <div id="err" class="badge bad" hidden></div>
   </aside>
@@ -137,7 +148,23 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
   view = b.dataset.v; show();
 });
 $('#example').onclick = async () => { $('#schema').value = await (await fetch('/api/example')).text(); };
+let jobId = null;
+function diagramPicker(names) {
+  const sel = $('#which'), keep = sel.value;
+  const opts = names.length > 1
+    ? [['', `All ${names.length} diagrams in one file`], ['each', 'Each diagram as its own file (zip)'],
+       ...names.map((n, i) => [String(i + 1), n])]
+    : [];
+  const html = opts.map(([v, l]) => `<option value="${v}">${l.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</option>`).join('');
+  if (sel.innerHTML !== html) { sel.innerHTML = html; if (opts.some(([v]) => v === keep)) sel.value = keep; }
+  $('#whichl').hidden = names.length < 2;
+}
 $('#dl').onclick = () => {
+  if (view === 'opt' && jobId) {      // the server builds every format from the best layout so far
+    const g = $('#which').value, a = document.createElement('a');
+    a.href = `/api/jobs/${jobId}/export/${$('#fmt').value}` + (g ? `?group=${g}` : ''); a.click();
+    return;
+  }
   const src = view === 'opt' ? result?.svg : base?.svg; if (!src) return;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([src], { type: 'image/svg+xml' }));
@@ -179,6 +206,7 @@ function render(job, final) {
     if (first) show(); else { const keep = [scale, tx, ty]; $('#stage').innerHTML = job.svg; [scale, tx, ty] = keep; applyT(); }
     $('#dl').disabled = false;
   }
+  if (job.diagrams) diagramPicker(job.diagrams);
 }
 $('#hubs').onchange = () => { $('#hubnames').hidden = $('#hubs').value !== 'names'; };
 $('#go').onclick = async () => {
@@ -188,12 +216,13 @@ $('#go').onclick = async () => {
                  hide_hubs: $('#hubs').value === 'names' ? $('#hubnames').value : $('#hubs').value };
   clearTimeout(pollTimer);
   $('#err').hidden = true; $('#go').disabled = true; $('#go').textContent = 'Solving…';
-  result = null; base = null; drawn = null; show();
+  result = null; base = null; drawn = null; jobId = null; diagramPicker([]); show();
   const post = (url) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   try {
     const r = await post('/api/jobs');
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
     const { id } = await r.json();
+    jobId = id;
     post('/api/baseline').then(x => x.ok ? x.json() : null).then(b => { base = b; });
     const poll = async () => {
       try {
