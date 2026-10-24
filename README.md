@@ -55,6 +55,18 @@ erlayout serve --port 8000                # web interface at http://127.0.0.1:80
 Options: `--format sql|dbml|json` (auto-detected), `--k-max`, `--certify-time`,
 `--workers` (defaults to all cores).
 
+### Docker and Railway
+
+```bash
+docker build -t erlayout .
+docker run -p 8000:8000 erlayout          # or -e PORT=... to change the port
+```
+
+The image serves the web interface on `$PORT` and answers `GET /health`.
+`railway.json` points Railway at the Dockerfile and that health check, so a
+Railway service created from this repository deploys with no extra settings.
+Set `ERLAYOUT_LOG_LEVEL` (default `INFO`) to change log verbosity.
+
 ### Row order (opt-in)
 
 By default every table keeps its columns in the order the schema declares.
