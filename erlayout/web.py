@@ -19,6 +19,32 @@ STATIC = Path(__file__).parent / "static"
 log = logging.getLogger(__name__)
 app = FastAPI(title="erlayout")
 
+# Limits for a shared deployment: solves running at once (more get HTTP 429),
+# the longest time budget a request may ask for, and CP-SAT threads per solve.
+MAX_RUNNING = int(os.environ.get("ERLAYOUT_MAX_RUNNING", "4"))
+MAX_TIME = float(os.environ.get("ERLAYOUT_MAX_TIME", "1800"))
+WORKERS = int(os.environ.get("ERLAYOUT_WORKERS", "0")) or os.cpu_count() or 4
+_running = 0
+_running_lock = threading.Lock()
+
+
+def _claim_slot():
+    global _running
+    with _running_lock:
+        if _running >= MAX_RUNNING:
+            raise HTTPException(429, f"server busy: {MAX_RUNNING} layouts already running, try again shortly")
+        _running += 1
+
+
+def _release_slot():
+    global _running
+    with _running_lock:
+        _running -= 1
+
+
+def _budget(req) -> float:
+    return max(1.0, min(req.time_limit, MAX_TIME))
+
 
 class LayoutRequest(BaseModel):
     text: str
@@ -37,7 +63,7 @@ def index():
 def health():
     with _JOBS_LOCK:
         running = sum(1 for j in JOBS.values() if not j["done"])
-    return {"status": "ok", "jobs_running": running}
+    return {"status": "ok", "jobs_running": running, "max_running": MAX_RUNNING, "max_time": MAX_TIME}
 
 
 @app.get("/api/example", response_class=PlainTextResponse)
@@ -66,11 +92,15 @@ def layout(req: LayoutRequest):
     schema = _parse(req)
     if req.k is not None and not (2 <= req.k <= 40):
         raise HTTPException(400, "k must be between 2 and 40")
-    t = max(1.0, min(req.time_limit, 1800.0))
+    t = _budget(req)
+    opts = _row_opts(req)
+    _claim_slot()
     try:
-        res = solve(schema, k=req.k, time_limit=t, workers=os.cpu_count() or 4, **_row_opts(req))
+        res = solve(schema, k=req.k, time_limit=t, workers=WORKERS, **opts)
     except RuntimeError as exc:
         raise HTTPException(422, str(exc)) from exc
+    finally:
+        _release_slot()
     res["tables"] = len(schema.tables)
     res["edges"] = len(schema.edges)
     return res
@@ -113,7 +143,7 @@ def _run_job(job_id: str, schema, k, t, opts):
                 job["lower_bound"] = ev["bound"]
 
     try:
-        res = solve(schema, k=k, time_limit=t, workers=os.cpu_count() or 4, on_progress=progress, **opts)
+        res = solve(schema, k=k, time_limit=t, workers=WORKERS, on_progress=progress, **opts)
         res["tables"] = len(schema.tables)
         res["edges"] = len(schema.edges)
         with _JOBS_LOCK:
@@ -122,6 +152,8 @@ def _run_job(job_id: str, schema, k, t, opts):
         log.exception("job %s failed", job_id)
         with _JOBS_LOCK:
             job.update(done=True, phase="error", error=str(exc))
+    finally:
+        _release_slot()
 
 
 @app.post("/api/jobs")
@@ -129,8 +161,9 @@ def start_job(req: LayoutRequest):
     schema = _parse(req)
     if req.k is not None and not (2 <= req.k <= 40):
         raise HTTPException(400, "k must be between 2 and 40")
-    t = max(1.0, min(req.time_limit, 1800.0))
+    t = _budget(req)
     opts = _row_opts(req)
+    _claim_slot()
     job_id = uuid.uuid4().hex[:12]
     with _JOBS_LOCK:
         if len(JOBS) >= MAX_JOBS:   # forget the oldest finished jobs

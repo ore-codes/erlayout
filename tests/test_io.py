@@ -178,3 +178,28 @@ def test_failed_job_is_logged(caplog, monkeypatch):
         time.sleep(0.1)
     assert job["phase"] == "error" and "solver exploded" in job["error"]
     assert any(f"job {job_id} failed" in r.message for r in caplog.records)
+
+
+def test_busy_server_returns_429(monkeypatch):
+    import erlayout.web as web
+
+    monkeypatch.setattr(web, "MAX_RUNNING", 0)
+    client = TestClient(app)
+    for url in ("/api/jobs", "/api/layout"):
+        r = client.post(url, json={"text": SMALL, "time_limit": 5})
+        assert r.status_code == 429 and "busy" in r.json()["detail"]
+    assert web._running == 0
+
+
+def test_time_budget_is_capped(monkeypatch):
+    import erlayout.web as web
+
+    monkeypatch.setattr(web, "MAX_TIME", 2.0)
+    client = TestClient(app)
+    job_id = client.post("/api/jobs", json={"text": SMALL, "time_limit": 600}).json()["id"]
+    assert client.get(f"/api/jobs/{job_id}").json()["time_limit"] == 2.0
+    for _ in range(100):
+        if client.get(f"/api/jobs/{job_id}").json()["done"]:
+            break
+        time.sleep(0.1)
+    assert web._running == 0

@@ -65,7 +65,17 @@ docker run -p 8000:8000 erlayout          # or -e PORT=... to change the port
 The image serves the web interface on `$PORT` and answers `GET /health`.
 `railway.json` points Railway at the Dockerfile and that health check, so a
 Railway service created from this repository deploys with no extra settings.
-Set `ERLAYOUT_LOG_LEVEL` (default `INFO`) to change log verbosity.
+Environment variables for the web server:
+
+| Variable | Meaning | Default (image) |
+| --- | --- | --- |
+| `ERLAYOUT_MAX_RUNNING` | solves at once; further requests get HTTP 429 | 4 (2) |
+| `ERLAYOUT_MAX_TIME` | longest time budget, in seconds, a request may use | 1800 (300) |
+| `ERLAYOUT_WORKERS` | CP-SAT threads per solve | all cores (2) |
+| `ERLAYOUT_LOG_LEVEL` | log verbosity | `INFO` |
+
+Peak CPU use is about `MAX_RUNNING × WORKERS` cores; override these in Railway's
+service variables to trade cost against speed.
 
 ### Row order (opt-in)
 
