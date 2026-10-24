@@ -203,3 +203,52 @@ def test_time_budget_is_capped(monkeypatch):
             break
         time.sleep(0.1)
     assert web._running == 0
+
+
+MYSQL_DUMP = """
+-- db.cache definition
+CREATE TABLE `cache` (
+  `key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `value` mediumtext NOT NULL,
+  PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `stores` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `year` year NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `stores_year` (`year`) USING BTREE
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE `locations` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `store_id` bigint unsigned NOT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `loc_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE `options` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `store_id` bigint unsigned NOT NULL,
+  `location_id` bigint unsigned NOT NULL,
+  `key_hash` binary(16) GENERATED ALWAYS AS (unhex(md5(`key`))) VIRTUAL,
+  `note` text COMMENT 'free text',
+  PRIMARY KEY (`id`),
+  CONSTRAINT `opt_loc` FOREIGN KEY (`store_id`, `location_id`) REFERENCES `locations` (`store_id`, `id`)
+) ENGINE=InnoDB;
+"""
+
+
+def test_mysql_dump_with_backticked_keywords():
+    s = parse_sql(MYSQL_DUMP)
+    assert [t.name for t in s.tables] == ["cache", "stores", "locations", "options"]
+    assert {(e.src_table, e.src_col, e.dst_table, e.dst_col) for e in s.edges} == {
+        ("locations", "store_id", "stores", "id"),
+        ("options", "store_id", "locations", "store_id"),
+        ("options", "location_id", "locations", "id"),
+    }
+
+
+def test_parse_error_has_no_terminal_codes():
+    r = TestClient(app).post("/api/layout", json={"text": "CREATE TABLE t (a INT", "format": "sql"})
+    assert r.status_code == 400 and "\x1b" not in r.json()["detail"]

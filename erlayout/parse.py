@@ -31,6 +31,22 @@ def _ref_target(ref: exp.Reference) -> tuple[str, list[str]]:
     return tbl, cols
 
 
+def _parse_statements(text: str, dialect: str | None):
+    """sqlglot statements for `text`. Without a dialect, try the likely ones in
+    turn: sqlglot's generic dialect does not treat backticks as identifier
+    quotes, so a MySQL dump with a column named `key` fails there."""
+    if dialect is not None:
+        return sqlglot.parse(text, read=dialect)
+    candidates = ["mysql", None, "postgres"] if "`" in text else [None, "postgres", "mysql", "tsql"]
+    first_error = None
+    for d in candidates:
+        try:
+            return sqlglot.parse(text, read=d)
+        except sqlglot.errors.ParseError as exc:
+            first_error = first_error or exc
+    raise first_error
+
+
 def parse_sql(text: str, dialect: str | None = None) -> Schema:
     """Parse CREATE TABLE / ALTER TABLE ... FOREIGN KEY statements.
     Referenced column defaults to the target's primary key (or `id`)."""
@@ -38,7 +54,7 @@ def parse_sql(text: str, dialect: str | None = None) -> Schema:
     raw_fks: list[tuple[str, str, str, str | None]] = []
     pks: dict[str, str] = {}
 
-    for st in sqlglot.parse(text, read=dialect):
+    for st in _parse_statements(text, dialect):
         if st is None:
             continue
         if isinstance(st, exp.Create) and st.args.get("kind", "").upper() == "TABLE":

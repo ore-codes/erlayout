@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import threading
 import time
 import uuid
@@ -81,7 +82,8 @@ def _parse(req: LayoutRequest):
     try:
         schema = parse_any(req.text, req.format)
     except Exception as exc:  # parser errors are user errors
-        raise HTTPException(400, f"could not parse schema: {exc}") from exc
+        msg = re.sub(r"\x1b\[[0-9;]*m", "", str(exc))  # sqlglot underlines the error with terminal codes
+        raise HTTPException(400, f"could not parse schema: {msg}") from exc
     if not schema.tables:
         raise HTTPException(400, "no tables found")
     return schema
