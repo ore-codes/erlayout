@@ -149,4 +149,7 @@ model, and exercises the parsers, CLI and web API.
 
 Optimality is relative to the layered model above (curves between columns,
 no foreign key inside one column, lines leave tables on the side facing their
-target). Exact solving is practical up to a few dozen tables.
+target). Exact solving is practical up to a few dozen tables. For larger
+schemas erlayout estimates how long each exact model would take to build and
+skips the ones that do not fit the time budget; a schema of several hundred
+tables gets the barycenter layout within seconds, labelled as such.

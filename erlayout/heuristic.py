@@ -78,26 +78,32 @@ def barycenter(schema: Schema, columns: dict[str, int], sweeps: int = 40,
         for o in orders:
             rnd.shuffle(o)
 
+    # fractional row offset of each edge end, and the edges at each table
+    frac = []
+    incident = {t.name: [] for t in schema.tables}
+    for j, e in enumerate(edges):
+        rs = schema.table(e.src_table).row(e.src_col)
+        rd = schema.table(e.dst_table).row(e.dst_col)
+        frac.append(((rs + 1) / (nrows[e.src_table] + 1), (rd + 1) / (nrows[e.dst_table] + 1)))
+        if columns[e.src_table] != columns[e.dst_table]:
+            incident[e.src_table].append(j)
+            incident[e.dst_table].append(j)
+
     def ypos(c, order):
         """fractional vertical coordinate of every edge end in column c."""
         pos = {it: p for p, it in enumerate(order)}
         out = {}
         for j, e in enumerate(edges):
             if columns[e.src_table] == c:
-                t, r = e.src_table, schema.table(e.src_table).row(e.src_col)
-                out[j] = pos[("T", t)] + (r + 1) / (nrows[t] + 1)
+                out[j] = pos[("T", e.src_table)] + frac[j][0]
             elif columns[e.dst_table] == c:
-                t, r = e.dst_table, schema.table(e.dst_table).row(e.dst_col)
-                out[j] = pos[("T", t)] + (r + 1) / (nrows[t] + 1)
+                out[j] = pos[("T", e.dst_table)] + frac[j][1]
             elif ("D", j) in pos:
                 out[j] = pos[("D", j)] + 0.5
         return out
 
     def item_edges(it, c):
-        if it[0] == "D":
-            return [it[1]]
-        return [j for j, e in enumerate(edges) if it[1] in (e.src_table, e.dst_table)
-                and columns[e.src_table] != columns[e.dst_table]]
+        return [it[1]] if it[0] == "D" else incident[it[1]]
 
     def other_side(j, c, ref):
         e = edges[j]

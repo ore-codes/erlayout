@@ -141,3 +141,56 @@ def test_reorder_keeps_pk_first_and_non_port_rows():
         for t, t2 in zip(s.tables, s2.tables):
             assert sorted(c.name for c in t.columns) == sorted(c.name for c in t2.columns)
             assert t2.columns[0].name == t.columns[0].name     # primary key stays on top
+
+
+def _naive_crossings(schema, columns, orders):
+    """The model definition, pair by pair, for checking the fast counter."""
+    edges = schema.solver_edges()
+    pos = [{it: p for p, it in enumerate(o)} for o in orders]
+    R = max(len(t.columns) for t in schema.tables) + 2
+
+    def key(j, c):
+        e = edges[j]
+        for t, col in ((e.src_table, e.src_col), (e.dst_table, e.dst_col)):
+            if columns[t] == c:
+                return pos[c][("T", t)] * R + schema.table(t).row(col) + 1
+        return pos[c][("D", j)] * R
+
+    total = 0
+    for g in range(len(orders) - 1):
+        live = [j for j, e in enumerate(edges)
+                if min(columns[e.src_table], columns[e.dst_table]) <= g < max(columns[e.src_table], columns[e.dst_table])]
+        for x, j in enumerate(live):
+            for k2 in live[x + 1:]:
+                if (key(j, g) - key(k2, g)) * (key(j, g + 1) - key(k2, g + 1)) < 0:
+                    total += 1
+    return total
+
+
+@pytest.mark.parametrize("seed", range(30))
+def test_fast_crossing_count_matches_definition(seed):
+    rng = random.Random(seed)
+    s = random_schema(rng, rng.randint(4, 12), rng.randint(3, 20), max_cols=5)
+    lay = heuristic(s)
+    orders = [list(o) for o in lay.orders]
+    for o in orders:
+        rng.shuffle(o)
+    assert count_crossings(s, lay.columns, orders) == _naive_crossings(s, lay.columns, orders)
+
+
+def test_oversized_model_is_refused_quickly():
+    s = random_schema(random.Random(7), 150, 200, max_cols=6)
+    with pytest.raises(RuntimeError, match="to build"):
+        ExactSolver(s, 20).solve(time_limit=10, workers=1)
+
+
+def test_large_schema_returns_heuristic_within_budget():
+    import time
+
+    from erlayout.api import solve
+
+    s = random_schema(random.Random(3), 150, 200, max_cols=6)
+    t0 = time.time()
+    res = solve(s, time_limit=10, workers=2)
+    assert time.time() - t0 < 30
+    assert res["svg"].startswith("<svg") and "too large for the exact solver" in res["guarantee"]

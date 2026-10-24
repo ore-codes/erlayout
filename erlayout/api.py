@@ -33,7 +33,7 @@ def _n(c: int, word: str = "crossing") -> str:
 
 
 def guarantee(crossings: int, columns: int, width_proven: int | None, lb: int, cert: dict | None,
-              n_tables: int, finished: bool = True) -> str:
+              n_tables: int, finished: bool = True, too_large: bool = False) -> str:
     if crossings == 0:
         return "Proven optimal: 0 crossings, the best any layout in this model can achieve."
     if cert is not None or (width_proven is not None and width_proven >= n_tables):
@@ -45,6 +45,9 @@ def guarantee(crossings: int, columns: int, width_proven: int | None, lb: int, c
     if width_proven is not None:
         parts.append(f"Proven optimal among drawings with at most {width_proven} columns: "
                      f"none has fewer than {_n(crossings)}.")
+    elif too_large:
+        parts.append(f"Heuristic layout: {_n(crossings)} in {_n(columns, 'column')}. The schema is too "
+                     f"large for the exact solver in this time budget, so this is the barycenter baseline.")
     else:
         parts.append(f"Best found: {_n(crossings)} in {_n(columns, 'column')}"
                      + (" (time limit reached)." if finished else " (still searching)."))
@@ -181,6 +184,10 @@ def solve(schema: Schema, k: int | None = None, time_limit: float = 60.0, worker
         #    can take ~40 s), so the time goes to one width that is likely good.
         main = max(kb, -(-n // 3))
         main = min(main, top)
+        # large schemas: narrow the width until the model can be built in the slice
+        probe = ExactSolver(schema, main)
+        while main > kb and probe.build_seconds(main) > 0.5 * S.left() * 0.45:
+            main -= 1
         S.emit("phase", phase="main", k=main)
         S.run_width(main, S.left() * 0.45, hint=False)
         # a proven width is often certified globally in seconds (Lemma 3): try that first
@@ -203,6 +210,8 @@ def solve(schema: Schema, k: int | None = None, time_limit: float = 60.0, worker
             w -= 1
 
     best = S.best
+    # every exact run was skipped because its model could not be built in time
+    too_large = bool(S.history) and all("to build" in h.get("error", "") for h in S.history)
     recount, check, svg = verify_and_render(schema, best)
     wp = S.width_proven()
     cert = S.lb if S.lb["bound"] >= best.crossings > 0 else None
@@ -217,7 +226,7 @@ def solve(schema: Schema, k: int | None = None, time_limit: float = 60.0, worker
         "k": wp or len(best.orders),
         "columns_used": len(best.orders),
         "span": best.span,
-        "guarantee": guarantee(best.crossings, len(best.orders), wp, lb, cert, n),
+        "guarantee": guarantee(best.crossings, len(best.orders), wp, lb, cert, n, too_large=too_large),
         "certificate": ({"tables": cert["tables"], "forced_crossings": cert["bound"],
                          "edges": cert["edges"], "attempts": cert["attempts"]} if cert else None),
         "lower_bound_search": {k2: S.lb.get(k2) for k2 in ("bound", "tables", "complete", "attempts")},

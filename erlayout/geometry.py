@@ -201,9 +201,13 @@ def geometric_check(schema: Schema, geo: Geometry) -> dict:
     two tables overlap.  Shares no code with the solver."""
     polys = [_flatten(p) for p in geo.paths]
     ends = [{tuple(np.round(P[0], 3)), tuple(np.round(P[-1], 3))} for P in polys]
+    lo = [P.min(axis=0) - 1e-6 for P in polys]
+    hi = [P.max(axis=0) + 1e-6 for P in polys]
     crossings = 0
     for a in range(len(polys)):
         for b in range(a + 1, len(polys)):
+            if (lo[a] > hi[b]).any() or (lo[b] > hi[a]).any():
+                continue                # bounding boxes apart: cannot intersect
             pts = _seg_intersections(polys[a], polys[b])
             shared = ends[a] & ends[b]
             uniq = []

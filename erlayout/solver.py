@@ -76,6 +76,15 @@ class ExactSolver:
         self.row_t = [schema.table(e.dst_table).row(e.dst_col) + 1 for e in self.edges]
         self.R = max([len(t.columns) for t in schema.tables] + [1]) + 2
 
+    def build_seconds(self, k: int | None = None) -> float:
+        """Rough time to build the model for k columns (measured ~13 us per
+        term): transitivity clauses grow with the cube of the items per column,
+        crossing clauses with the square of the edges."""
+        K, n, E = k or self.k, self.n, len(self.edges)
+        terms = (2 * (min(K, 2) * n**3 + max(K - 2, 0) * (n + E) ** 3) / 6
+                 + E * (E - 1) / 2 * max(K - 1, 0) * 16)
+        return 1.3e-5 * terms
+
     # ------------------------------------------------------------------ model
     def _build(self, hint: Layout | None = None, crossing_cap: int | None = None,
                minimize: str = "crossings"):
@@ -398,6 +407,10 @@ class ExactSolver:
         if not self.edges:
             cols = {t: 0 for t in self.tables}
             return Layout(cols, [[("T", t) for t in self.tables]], 0, 0, "OPTIMAL", 0, 0.0, self.k)
+        est = self.build_seconds()
+        if est > max(2.0, 0.5 * time_limit):
+            raise RuntimeError(f"the exact model for {self.k} columns would take about {est:.0f} s "
+                               f"to build, more than this {time_limit:.0f} s budget allows")
 
         m, cross, span, ncross = self._build(hint=hint, crossing_cap=cap)
         if hint is not None:

@@ -34,13 +34,14 @@ def count_crossings(schema: Schema, columns: dict[str, int], orders: list[list])
     edges = schema.solver_edges()
     pos = [{it: p for p, it in enumerate(order)} for order in orders]
     R = max(len(t.columns) for t in schema.tables) + 2
+    rows = [(schema.table(e.src_table).row(e.src_col), schema.table(e.dst_table).row(e.dst_col)) for e in edges]
 
     def key(j, c):
         e = edges[j]
         if columns[e.src_table] == c:
-            return pos[c][("T", e.src_table)] * R + schema.table(e.src_table).row(e.src_col) + 1
+            return pos[c][("T", e.src_table)] * R + rows[j][0] + 1
         if columns[e.dst_table] == c:
-            return pos[c][("T", e.dst_table)] * R + schema.table(e.dst_table).row(e.dst_col) + 1
+            return pos[c][("T", e.dst_table)] * R + rows[j][1] + 1
         return pos[c][("D", j)] * R
 
     spans = []
@@ -50,12 +51,36 @@ def count_crossings(schema: Schema, columns: dict[str, int], orders: list[list])
     total = 0
     for g in range(len(orders) - 1):
         live = [j for j, (a, b) in enumerate(spans) if a <= g < b]
-        for x in range(len(live)):
-            for y in range(x + 1, len(live)):
-                j, k2 = live[x], live[y]
-                l0, l1 = key(j, g) - key(k2, g), key(j, g + 1) - key(k2, g + 1)
-                if l0 * l1 < 0:
-                    total += 1
+        total += _strict_inversions([(key(j, g), key(j, g + 1)) for j in live])
+    return total
+
+
+def _strict_inversions(pairs: list[tuple[int, int]]) -> int:
+    """Number of pairs ordered strictly one way on the left and strictly the
+    other way on the right: two segments in a gap cross exactly then (equal
+    keys share an endpoint).  Fenwick tree over the right keys, O(n log n)."""
+    ranks = {v: i + 1 for i, v in enumerate(sorted({r for _, r in pairs}))}
+    tree = [0] * (len(ranks) + 1)
+    seen = total = 0
+    pairs = sorted(pairs)
+    i = 0
+    while i < len(pairs):
+        j = i
+        while j < len(pairs) and pairs[j][0] == pairs[i][0]:
+            j += 1
+        for _, r in pairs[i:j]:         # earlier groups lie strictly above on the left
+            q, below = ranks[r], 0
+            while q:
+                below += tree[q]
+                q -= q & -q
+            total += seen - below       # ... and strictly below on the right
+        for _, r in pairs[i:j]:
+            q = ranks[r]
+            while q < len(tree):
+                tree[q] += 1
+                q += q & -q
+            seen += 1
+        i = j
     return total
 
 
