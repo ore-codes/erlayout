@@ -74,7 +74,7 @@ def main():
     ap.add_argument("--chrome", default=CHROME)
     ap.add_argument("--time", type=float, default=120)
     a = ap.parse_args()
-    schema = parse_any((ROOT / "erlayout" / "static" / "example.sql").read_text())
+    schema = parse_any((ROOT / "examples" / "sakila.sql").read_text())
     layouts = {"sakila-standard": heuristic(schema)}
     for name, reorder, pin in (("sakila-erlayout-declared", False, True), ("sakila-erlayout-reordered", True, False)):
         res = solve(schema, time_limit=a.time, reorder_rows=reorder, pin_pk=pin)

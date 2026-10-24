@@ -1,5 +1,6 @@
 # erlayout
 
+[![PyPI](https://img.shields.io/pypi/v/erlayout)](https://pypi.org/project/erlayout/)
 [![CI](https://github.com/ore-codes/erlayout/actions/workflows/ci.yml/badge.svg)](https://github.com/ore-codes/erlayout/actions/workflows/ci.yml)
 
 Lay out an ER diagram (SQL DDL, DBML or JSON) with the **fewest possible line
@@ -32,7 +33,7 @@ image for full size.
 </tr>
 </table>
 
-The images are erlayout's own SVG output for `erlayout/static/example.sql`,
+The images are erlayout's own SVG output for `examples/sakila.sql`,
 rendered to PNG by `bench/readme_images.py`, which places the red circles where
 the geometric check finds crossings.  Keeping the primary key on top while reordering gives 1
 crossing, also proven minimal.
@@ -111,18 +112,13 @@ that proof before the stop.  Over HTTP: `POST /api/jobs/{id}/stop`.
 erlayout layout schema.dbml -o er.drawio -o er.excalidraw -o er.mmd -o er.svg
 ```
 
-* **draw.io** (`.drawio`): tables as draw.io tables, links attached to their
-  rows with crow's-foot ends, so they follow a table you drag.  A split schema
-  gets one page per group.
-* **Excalidraw** (`.excalidraw`): tables grouped, links bound to them; a split
-  schema gets one frame per group.
-* **Mermaid** (`.mmd`): an `erDiagram` with every table and relationship.
-  Mermaid has no positions, so it lays the diagram out itself; only the
-  declaration order comes from erlayout.
+* **draw.io** (`.drawio`): tables as draw.io tables, links attached to their rows with crow's-foot ends, so they follow a table you drag. A split schema gets one page per group.
+* **Excalidraw** (`.excalidraw`): tables grouped, links bound to them; a split schema gets one frame per group.
+* **Mermaid** (`.mmd`): an `erDiagram` with every table and relationship. Mermaid has no positions, so it lays the diagram out itself; only the declaration order comes from erlayout.
 
 For a split schema, `--each-group` also writes every group to its own file.
 In the web interface, **Export as** picks the format and **Diagrams** picks all
-groups in one file, one group, or each group as its own file in a zip.  The
+groups in one file, one group, or each group as its own file in a zip. The
 same is available over HTTP as
 `GET /api/jobs/{id}/export/{svg|drawio|excalidraw|mermaid}?group={n|each}`.
 
@@ -209,7 +205,7 @@ diagram as better layouts arrive.
 | --- | --- | --- | --- | --- |
 | Chinook | 11 / 10 | 1 | 0 | proven optimal |
 | Northwind | 14 / 12 | 4 | 0 | proven optimal |
-| Sakila (examples/sakila.sql) | 15 / 22 | 8 | 2 | globally optimal, 6-table certificate |
+| Sakila (`examples/sakila.sql`) | 15 / 22 | 8 | 2 | globally optimal, 6-table certificate |
 
 The baseline is the classic Sugiyama pipeline (longest-path layering and
 barycenter sweeps) in the same drawing model.
@@ -251,3 +247,9 @@ skips the ones that do not fit the time budget; a schema of several hundred
 tables gets the barycenter layout within seconds, labelled as such, when
 splitting is turned off.  Splitting gives up the single-drawing guarantee:
 each diagram is optimal on its own, and the links between diagrams are tags.
+
+## Contributing
+
+Bug reports, schemas that lay out badly and pull requests are welcome.  See
+[CONTRIBUTING.md](https://github.com/ore-codes/erlayout/blob/master/CONTRIBUTING.md)
+for how to set up, test and pick a first issue.
