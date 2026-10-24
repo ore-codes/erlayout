@@ -46,7 +46,7 @@ def _parse(req: LayoutRequest):
     try:
         schema = parse_any(req.text, req.format)
     except Exception as exc:  # parser errors are user errors
-        raise HTTPException(400, f"could not parse schema: {exc}")
+        raise HTTPException(400, f"could not parse schema: {exc}") from exc
     if not schema.tables:
         raise HTTPException(400, "no tables found")
     return schema
@@ -61,7 +61,7 @@ def layout(req: LayoutRequest):
     try:
         res = solve(schema, k=req.k, time_limit=t, workers=os.cpu_count() or 4, **_row_opts(req))
     except RuntimeError as exc:
-        raise HTTPException(422, str(exc))
+        raise HTTPException(422, str(exc)) from exc
     res["tables"] = len(schema.tables)
     res["edges"] = len(schema.edges)
     return res

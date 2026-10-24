@@ -397,9 +397,8 @@ class ExactSolver:
             return Layout(cols, [[("T", t) for t in self.tables]], 0, 0, "OPTIMAL", 0, 0.0, self.k)
 
         m, cross, span, ncross = self._build(hint=hint, crossing_cap=cap)
-        hint_ok = None
         if hint is not None:
-            hint_ok = self._complete_hint(m, workers, max(1.0, min(15.0, 0.25 * time_limit)))
+            self._complete_hint(m, workers, max(1.0, min(15.0, 0.25 * time_limit)))
         s = cp_model.CpSolver()
         p1 = time_limit - (phase2_time if (phase2 and phase2_time) else 0)
         s.parameters.max_time_in_seconds = max(0.5, p1)

@@ -1,13 +1,13 @@
 import random
 
 import pytest
+from test_solver import random_schema
 
 from erlayout.api import solve
 from erlayout.bruteforce import brute_force
 from erlayout.certify import certify, induced
 from erlayout.model import Column, Edge, Schema, Table
 from erlayout.solver import ExactSolver
-from test_solver import random_schema
 
 
 def twist_plus_chain() -> Schema:

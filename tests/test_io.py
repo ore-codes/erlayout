@@ -106,11 +106,8 @@ def test_web_jobs_report_progress_then_result():
     r = client.post("/api/jobs", json={"text": SMALL, "time_limit": 20})
     assert r.status_code == 200, r.text
     job_id = r.json()["id"]
-    seen_svg_before_done = False
     for _ in range(200):
         job = client.get(f"/api/jobs/{job_id}").json()
-        if not job["done"] and job["svg"]:
-            seen_svg_before_done = True
         if job["done"]:
             break
         time.sleep(0.1)

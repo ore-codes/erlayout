@@ -1,5 +1,8 @@
-import sys, pathlib
+import pathlib
+import sys
+
 from playwright.sync_api import sync_playwright
+
 src, dst = sys.argv[1], sys.argv[2]
 svg = pathlib.Path(src).read_text()
 with sync_playwright() as p:

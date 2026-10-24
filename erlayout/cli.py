@@ -41,6 +41,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     if a.cmd == "serve":
         import uvicorn
+
         from .web import app
         uvicorn.run(app, host=a.host, port=a.port)
         return 0

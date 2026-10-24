@@ -1,7 +1,9 @@
 """Reduce the public sample-database dumps to their DDL (tables + keys).
 Sakila's monthly payment partitions are dropped."""
 import re
+
 from erlayout.parse import parse_sql
+
 for name in ['chinook', 'sakila', 'northwind']:
     txt = open(f'schemas/{name}.sql', encoding='utf-8', errors='replace').read()
     txt = re.sub(r'/\*.*?\*/', '', txt, flags=re.S)

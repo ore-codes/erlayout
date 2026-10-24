@@ -9,7 +9,6 @@
 Writes one JSON line per run to bench/out/results.jsonl.
 """
 import json
-import os
 import random
 import sys
 import time
@@ -19,7 +18,7 @@ from erlayout.crossings import count_crossings
 from erlayout.geometry import assign, geometric_check
 from erlayout.heuristic import heuristic
 from erlayout.model import Column, Edge, Schema, Table
-from erlayout.parse import parse_any, parse_sql
+from erlayout.parse import parse_sql
 from erlayout.solver import ExactSolver
 
 OUT = "bench/out/results.jsonl"

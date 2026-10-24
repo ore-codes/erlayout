@@ -51,7 +51,7 @@ class Schema:
                 return t
         raise KeyError(name)
 
-    def validate(self) -> "Schema":
+    def validate(self) -> Schema:
         """Normalise names to the declared casing and drop edges whose
         endpoints do not exist. Self-loops are kept in `edges` but the
         solver ignores them (they cannot cross anything in the model)."""
@@ -92,7 +92,7 @@ class Schema:
             out.append(e)
         return out
 
-    def with_row_order(self, rows: dict | None) -> "Schema":
+    def with_row_order(self, rows: dict | None) -> Schema:
         """Copy of the schema whose tables list their columns in the given order
         (table name -> column names).  Tables not in `rows` keep their order."""
         if not rows:
@@ -121,7 +121,7 @@ class Schema:
         }
 
     @staticmethod
-    def from_dict(d: dict) -> "Schema":
+    def from_dict(d: dict) -> Schema:
         tables = [
             Table(t["name"], [Column(c["name"], c.get("type", ""), c.get("pk", False))
                               for c in t["columns"]])

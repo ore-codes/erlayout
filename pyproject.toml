@@ -25,3 +25,16 @@ erlayout = ["static/*"]
 [tool.pytest.ini_options]
 pythonpath = [".", "tests"]
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = ["ruff>=0.17"]
+
+[tool.ruff]
+line-length = 140
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+# the code uses compact one-line statements; B023: helpers are called in the
+# iteration that defines them; B905: zip lengths are equal by construction
+ignore = ["E701", "E702", "E731", "E741", "B023", "B905"]
