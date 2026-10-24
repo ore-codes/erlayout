@@ -33,6 +33,9 @@ pip install -e .            # Python 3.10+
 pip install -e ".[test]"    # with test dependencies
 ```
 
+`uv.lock` pins every dependency; `uv sync --locked --extra test` installs
+exactly those versions (this is what CI and the Docker image use).
+
 Use a fresh virtual environment rather than a conda base environment. In
 Anaconda, OR-Tools imports pandas, pandas loads pyarrow, and pyarrow brings in
 conda's own `libprotobuf`; OR-Tools then loads its bundled copy and the process
