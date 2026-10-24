@@ -25,7 +25,9 @@ crossing-optimal drawings.
 from __future__ import annotations
 
 import logging
+import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 from ortools.sat.python import cp_model
@@ -33,6 +35,58 @@ from ortools.sat.python import cp_model
 from .model import Schema
 
 log = logging.getLogger(__name__)
+
+
+class Stopper:
+    """Ends a search from another thread: stop() interrupts every CP-SAT run
+    started under it and makes later ones return at once.  An interrupted run
+    reports FEASIBLE, never OPTIMAL, so nothing is claimed as proven."""
+
+    def __init__(self):
+        self._stopped = False
+        self._running: set = set()
+        self._lock = threading.Lock()
+
+    @property
+    def stopped(self) -> bool:
+        return self._stopped
+
+    def stop(self):
+        with self._lock:
+            self._stopped = True
+            running = list(self._running)
+        for solver in running:
+            solver.StopSearch()
+
+    @contextmanager
+    def track(self, solver: cp_model.CpSolver):
+        with self._lock:
+            if self._stopped:
+                solver.parameters.max_time_in_seconds = 0.0
+            self._running.add(solver)
+        try:
+            yield
+        finally:
+            with self._lock:
+                self._running.discard(solver)
+
+
+def _cp_solver() -> cp_model.CpSolver:
+    """A CP-SAT solver that leaves Ctrl-C to Python: its own SIGINT handler
+    aborts the process when the solve runs outside the main thread, as it
+    does in the CLI and the web server (Stopper ends searches instead)."""
+    s = cp_model.CpSolver()
+    s.parameters.catch_sigint_signal = False
+    return s
+
+
+@contextmanager
+def _tracked(stopper: Stopper | None, solver: cp_model.CpSolver):
+    if stopper is None:
+        yield
+    else:
+        with stopper.track(solver):
+            yield
 
 
 @dataclass
@@ -87,7 +141,7 @@ class ExactSolver:
 
     # ------------------------------------------------------------------ model
     def _build(self, hint: Layout | None = None, crossing_cap: int | None = None,
-               minimize: str = "crossings"):
+               minimize: str = "crossings", stopper: Stopper | None = None):
         """Pure-Boolean encoding.
 
         * inT[i][c]  table i sits in column c (exactly one c).
@@ -144,8 +198,13 @@ class ExactSolver:
         def present(it, c):
             return inT[it[1]][c] if it[0] == "T" else dum[it[1]][c]
 
+        def check_stop():
+            if stopper is not None and stopper.stopped:
+                raise RuntimeError("stopped")
+
         above = {}
         for c in cols:
+            check_stop()
             live = [it for it in items if present(it, c) is not None]
             idx = {it: q for q, it in enumerate(live)}
             for p_ in range(len(live)):
@@ -231,6 +290,7 @@ class ExactSolver:
 
         cross = []
         for j in range(E):
+            check_stop()
             for k2 in range(j + 1, E):
                 for g in range(K - 1):
                     x = m.NewBoolVar(f"x{j}_{k2}_{g}")
@@ -365,7 +425,7 @@ class ExactSolver:
 
     # ------------------------------------------------------------------ solve
     @staticmethod
-    def _complete_hint(m: cp_model.CpModel, workers: int, limit: float):
+    def _complete_hint(m: cp_model.CpModel, workers: int, limit: float, stopper: Stopper | None = None):
         """The layout hint only names placement and order literals; CP-SAT
         often fails to rebuild the remaining ~95% of the assignment from that.
         Fix the hinted literals in a copy, let propagation fill in the rest
@@ -377,10 +437,11 @@ class ExactSolver:
         c = m.clone()
         for idx, val in pairs:
             c.Add(c.GetIntVarFromProtoIndex(idx) == val)
-        cs = cp_model.CpSolver()
+        cs = _cp_solver()
         cs.parameters.max_time_in_seconds = limit
         cs.parameters.num_workers = workers
-        st = cs.Solve(c)
+        with _tracked(stopper, cs):
+            st = cs.Solve(c)
         if st not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             return False
         m.ClearHints()
@@ -398,11 +459,12 @@ class ExactSolver:
 
     def solve(self, time_limit: float = 60.0, workers: int = 8, hint: Layout | None = None,
               phase2: bool = True, log: bool = False, cap: int | None = None,
-              phase2_time: float | None = None, on_improve=None) -> Layout:
+              phase2_time: float | None = None, on_improve=None, stopper: Stopper | None = None) -> Layout:
         """cap: only accept drawings with at most `cap` crossings.
         phase2_time: limit for the span-minimisation pass (default: what is left).
         on_improve(layout): called from the solver thread for every improving
-        phase-1 solution (crossings = objective value, not yet re-verified)."""
+        phase-1 solution (crossings = objective value, not yet re-verified).
+        stopper: lets another thread end the search early (Stopper)."""
         t0 = time.time()
         if not self.edges:
             cols = {t: 0 for t in self.tables}
@@ -412,10 +474,12 @@ class ExactSolver:
             raise RuntimeError(f"the exact model for {self.k} columns would take about {est:.0f} s "
                                f"to build, more than this {time_limit:.0f} s budget allows")
 
-        m, cross, span, ncross = self._build(hint=hint, crossing_cap=cap)
-        if hint is not None:
-            self._complete_hint(m, workers, max(1.0, min(15.0, 0.25 * time_limit)))
-        s = cp_model.CpSolver()
+        if stopper is not None and stopper.stopped:
+            raise RuntimeError("stopped")
+        m, cross, span, ncross = self._build(hint=hint, crossing_cap=cap, stopper=stopper)
+        if hint is not None and not (stopper and stopper.stopped):
+            self._complete_hint(m, workers, max(1.0, min(15.0, 0.25 * time_limit)), stopper)
+        s = _cp_solver()
         p1 = time_limit - (phase2_time if (phase2 and phase2_time) else 0)
         s.parameters.max_time_in_seconds = max(0.5, p1)
         s.parameters.num_workers = workers
@@ -433,9 +497,11 @@ class ExactSolver:
                                           rows=outer._extract_rows(self)))
                     except Exception:  # a progress report must never break the search
                         log.exception("could not report an intermediate solution")
-            st = s.Solve(m, _CB())
+            with _tracked(stopper, s):
+                st = s.Solve(m, _CB())
         else:
-            st = s.Solve(m)
+            with _tracked(stopper, s):
+                st = s.Solve(m)
         if st not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             if st == cp_model.INFEASIBLE:
                 raise RuntimeError(f"no valid layering with {self.k} columns")
@@ -451,13 +517,14 @@ class ExactSolver:
         sp = sum(abs(columns[e.src_table] - columns[e.dst_table]) for e in self.edges)
 
         left = time_limit - (time.time() - t0)
-        if phase2 and left > 0.5:
+        if phase2 and left > 0.5 and not (stopper and stopper.stopped):
             hint2 = Layout(columns, orders, best, sp, rows=rows)
-            m2, _, _, _ = self._build(hint=hint2, crossing_cap=best, minimize="span")
-            s2 = cp_model.CpSolver()
+            m2, _, _, _ = self._build(hint=hint2, crossing_cap=best, minimize="span", stopper=stopper)
+            s2 = _cp_solver()
             s2.parameters.max_time_in_seconds = max(0.5, min(left, phase2_time) if phase2_time else left)
             s2.parameters.num_workers = workers
-            st2 = s2.Solve(m2)
+            with _tracked(stopper, s2):
+                st2 = s2.Solve(m2)
             if st2 in (cp_model.OPTIMAL, cp_model.FEASIBLE):
                 columns, orders = self._extract(s2)
                 rows = self._extract_rows(s2)

@@ -26,8 +26,8 @@ erlayout layout schema.dbml -o schema.drawio -o schema.excalidraw -o schema.mmd 
 ```
 
 The extension of each `-o` picks the format. The files are rewritten every
-time a better layout is found, so you can stop early with Ctrl-C and still have
-a usable result.
+time a better layout is found. To finish early, press Ctrl-C (or **Stop** in the
+web interface): the best layout so far is kept and written.
 
 ### Large schemas
 
@@ -41,7 +41,9 @@ If most tables point at a few central ones (`users`, `accounts`, `stores`),
 add `--hide-hubs auto`. The links to those tables become row tags as well
 (`→ users (hidden hub)`), which removes the bundles of lines they would draw.
 You can also name the tables: `--hide-hubs users,stores`. The web interface has
-the same settings under **Split**, **Group size** and **Hide hub links**.
+the same settings under **Options**. Groups are placed in a grid by default;
+**Arrange** (`--arrange row` or `column`) puts them side by side or one above the
+other instead.
 
 ## 3. Keep editing
 

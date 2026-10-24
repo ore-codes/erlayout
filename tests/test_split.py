@@ -131,3 +131,35 @@ def test_web_split_options():
         time.sleep(0.1)
     assert job["done"] and not job.get("error"), job.get("error")
     assert job["split"] and job["crossings"] == sum(g["crossings"] for g in job["groups"])
+
+
+def test_arrangements_do_not_overlap_and_grid_is_screen_shaped():
+    from erlayout.render import cell_width, place
+    sizes = [(300 + 97 * (i % 5), 200 + 131 * (i % 7)) for i in range(25)]
+    titles = [f"Group {i + 1}: some_table and {i} more" for i in range(25)]
+    shapes = {}
+    for how in ("grid", "row", "column"):
+        pos, W, H = place(sizes, titles, how)
+        boxes = [(x, y - 34, x + cell_width(w, t), y + h) for (x, y), (w, h), t in zip(pos, sizes, titles)]
+        for i, a in enumerate(boxes):
+            assert a[2] <= W + 1e-6 and a[3] <= H + 1e-6
+            for b in boxes[i + 1:]:
+                assert a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1]
+        shapes[how] = W / H
+    assert shapes["column"] < 1 < shapes["row"]
+    assert 1 <= shapes["grid"] <= 2.6
+
+
+def test_split_arrange_option():
+    s = modules()
+    for how in ("grid", "row", "column"):
+        res = solve_split(s, time_limit=10, workers=2, max_group=6, arrange=how)
+        assert res["drawing"]["arrange"] == how
+        xs = {round(sec["x"]) for sec in res["drawing"]["sections"]}
+        ys = {round(sec["y"]) for sec in res["drawing"]["sections"]}
+        if how == "column":
+            assert xs == {0}
+        if how == "row":
+            assert len(ys) == 1
+    client = TestClient(app)
+    assert client.post("/api/baseline", json={"text": ddl(s), "split": "on", "arrange": "spiral"}).status_code == 400

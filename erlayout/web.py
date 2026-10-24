@@ -16,6 +16,8 @@ from pydantic import BaseModel
 from .api import baseline_split, baseline_svg, resolve_hubs, solve, solve_split, verify_and_draw, wants_split
 from .export import FORMATS, drawing, export, export_each, pick
 from .parse import parse_any
+from .render import ARRANGEMENTS
+from .solver import Stopper
 
 STATIC = Path(__file__).parent / "static"
 log = logging.getLogger(__name__)
@@ -57,6 +59,7 @@ class LayoutRequest(BaseModel):
     split: str = "auto"         # auto | on | off: one diagram per group of related tables
     hide_hubs: str = ""         # "" | auto | comma-separated table names drawn as row tags only
     max_group: int = 15
+    arrange: str = "grid"       # grid | row | column: how the diagrams of a split schema are placed
 
 
 @app.get("/")
@@ -92,9 +95,11 @@ def _split_opts(req: LayoutRequest, schema) -> dict | None:
         hubs = resolve_hubs(schema, req.hide_hubs.strip())
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+    if req.arrange not in ARRANGEMENTS:
+        raise HTTPException(400, f"arrange must be one of {', '.join(ARRANGEMENTS)}")
     if not wants_split(schema, req.split, hubs, req.max_group):
         return None
-    return {"max_group": req.max_group, "hubs": hubs}
+    return {"max_group": req.max_group, "hubs": hubs, "arrange": req.arrange}
 
 
 def _parse(req: LayoutRequest):
@@ -182,10 +187,12 @@ def _run_job(job_id: str, schema, k, t, opts, split):
                 job["lower_bound"] = ev["bound"]
 
     try:
+        stopper = job["_stopper"]
         if split:
-            res = solve_split(schema, time_limit=t, workers=WORKERS, on_progress=progress, **split, **opts)
+            res = solve_split(schema, time_limit=t, workers=WORKERS, on_progress=progress, stopper=stopper,
+                              **split, **opts)
         else:
-            res = solve(schema, k=k, time_limit=t, workers=WORKERS, on_progress=progress, **opts)
+            res = solve(schema, k=k, time_limit=t, workers=WORKERS, on_progress=progress, stopper=stopper, **opts)
         res["tables"] = len(schema.tables)
         res["edges"] = len(schema.edges)
         res["_drawing"] = res.pop("drawing")
@@ -219,7 +226,8 @@ def start_job(req: LayoutRequest):
         JOBS[job_id] = {"id": job_id, "done": False, "phase": "starting", "started": time.time(),
                         "time_limit": t, "elapsed": 0.0, "crossings": None, "svg": None,
                         "improvements": 0, "lower_bound": 0, "tables": len(schema.tables),
-                        "edges": len(schema.edges), "split": bool(split), "_schema": schema}
+                        "edges": len(schema.edges), "split": bool(split), "_schema": schema,
+                        "_stopper": Stopper()}
     log.info("job %s: %d tables, %d foreign keys, %.0fs budget", job_id, len(schema.tables), len(schema.edges), t)
     threading.Thread(target=_run_job, args=(job_id, schema, req.k, t, opts, split), daemon=True).start()
     return {"id": job_id}
@@ -235,6 +243,20 @@ def get_job(job_id: str):
     if not out["done"]:
         out["elapsed"] = round(time.time() - out["started"], 1)
     return out
+
+
+@app.post("/api/jobs/{job_id}/stop")
+def stop_job(job_id: str):
+    """End the search now; the job then finishes with the best layout so far."""
+    with _JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if job is None:
+            raise HTTPException(404, "no such job")
+        if not job["done"]:
+            job["phase"] = "stopping"
+        stopper = job["_stopper"]
+    stopper.stop()
+    return {"stopping": True}
 
 
 @app.get("/api/jobs/{job_id}/export/{fmt}")

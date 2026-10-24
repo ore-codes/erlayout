@@ -59,6 +59,14 @@ erlayout serve --port 8000                # web interface at http://127.0.0.1:80
 Options: `--format sql|dbml|json` (auto-detected), `--k-max`, `--certify-time`,
 `--workers` (defaults to all cores).
 
+### Stopping early
+
+The web interface has a **Stop** button while a layout is being searched, and
+`erlayout layout` stops on Ctrl-C.  Either way the search ends within about a
+second and the best layout found so far is verified and kept, labelled
+"stopped early".  Nothing is claimed as proven unless the solver finished
+that proof before the stop.  Over HTTP: `POST /api/jobs/{id}/stop`.
+
 ### Export for editing
 
 `-o` can be given more than once, and its extension picks the format:
@@ -126,7 +134,9 @@ therefore splits it (`--split auto`, the default; `on` and `off` force it):
 
 * tables that reference each other a lot are grouped together, at most
   `--max-group` tables (default 15) per group, and each group is laid out and
-  solved as its own diagram, stacked one above the other in the SVG;
+  solved as its own diagram.  The diagrams are placed in a grid shaped like
+  a wide screen (`--arrange grid`, the default), side by side (`row`) or one
+  above the other (`column`);
 * a link between two groups is not drawn: its row shows `→ orders (group 3)`
   in place of the column type;
 * tables with no drawn link go into one compact panel at the end.
@@ -136,7 +146,7 @@ the tables that most others point to out of the groups.  Their links become
 row tags (`→ stores (hidden hub)`), which removes the fans of lines such a
 table draws.  `auto` picks tables referenced by at least 10 foreign keys and
 by at least 5% of all of them.  The web interface has the same choices under
-**Split**, **Group size** and **Hide hub links**.  Crossing counts and proofs
+**Options**: **Split**, **Group size**, **Arrange** and **Hide hub links**.  Crossing counts and proofs
 are then per diagram; the summary says how many diagrams were proven optimal.
 
 ### How automatic mode spends its time

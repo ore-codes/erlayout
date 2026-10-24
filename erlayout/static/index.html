@@ -42,6 +42,10 @@
   #stage { transform-origin: 0 0; position: absolute; left: 0; top: 0; }
   .empty { color: var(--muted); padding: 40px; }
   details { color: var(--muted); font-size: 12.5px; }
+  .opts { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--ink); font-size: 14px; }
+  .opts summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+  .opts summary span { font-weight: 400; color: var(--muted); }
+  .opts h4 { margin: 12px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
   pre { margin: 6px 0 0; font-size: 12px; white-space: pre-wrap; }
   @media (max-width: 760px) { main { grid-template-columns: 1fr; height: auto; } #canvas { height: 70vh; } }
 </style>
@@ -56,37 +60,48 @@
     </div>
     <textarea id="schema" spellcheck="false" placeholder="Paste CREATE TABLE statements, DBML, or JSON"></textarea>
     <div class="row">
-      <label>Format
-        <select id="format"><option value="">Auto</option><option>sql</option><option>dbml</option><option>json</option></select>
-      </label>
-      <label>Columns
-        <select id="k"><option value="">Auto</option></select>
-      </label>
-      <label>Row order
-        <select id="rows">
-          <option value="keep" selected>Keep as is</option>
-          <option value="reorder">Reorder, primary key on top</option>
-          <option value="reorder-free">Reorder freely</option>
-        </select>
-      </label>
       <label>Time budget
         <select id="time"><option value="30">30 s</option><option value="120">2 min</option><option value="300" selected>5 min</option><option value="600">10 min</option><option value="1800">30 min</option></select>
       </label>
-    </div>
-    <div class="row">
-      <label title="Draw one diagram per group of related tables. Auto splits schemas over 40 tables.">Split
-        <select id="split"><option value="auto" selected>Auto</option><option value="on">On</option><option value="off">Off</option></select>
-      </label>
-      <label>Group size
-        <select id="maxgroup"><option>10</option><option selected>15</option><option>20</option><option>25</option></select>
-      </label>
-      <label title="Tables many others point to (such as users or stores) get a row tag instead of a line.">Hide hub links
-        <select id="hubs"><option value="" selected>Off</option><option value="auto">Auto</option><option value="names">These tables…</option></select>
-      </label>
-      <input id="hubnames" placeholder="users, stores" hidden>
-    </div>
-    <div class="row">
       <button class="primary" id="go">Lay out</button>
+      <button id="stop" hidden title="End the search now and keep the best layout found so far">Stop</button>
+    </div>
+    <details class="opts" id="opts">
+      <summary>Options <span id="changed"></span></summary>
+      <h4>Layout</h4>
+      <div class="row">
+        <label>Format
+          <select id="format"><option value="">Auto</option><option>sql</option><option>dbml</option><option>json</option></select>
+        </label>
+        <label>Columns
+          <select id="k"><option value="">Auto</option></select>
+        </label>
+        <label>Row order
+          <select id="rows">
+            <option value="keep" selected>Keep as is</option>
+            <option value="reorder">Reorder, primary key on top</option>
+            <option value="reorder-free">Reorder freely</option>
+          </select>
+        </label>
+      </div>
+      <h4>Large schemas</h4>
+      <div class="row">
+        <label title="Draw one diagram per group of related tables. Auto splits schemas over 40 tables.">Split
+          <select id="split"><option value="auto" selected>Auto</option><option value="on">On</option><option value="off">Off</option></select>
+        </label>
+        <label>Group size
+          <select id="maxgroup"><option>10</option><option selected>15</option><option>20</option><option>25</option></select>
+        </label>
+        <label title="How the diagrams of a split schema are placed">Arrange
+          <select id="arrange"><option value="grid" selected>Grid</option><option value="row">Side by side</option><option value="column">Stacked</option></select>
+        </label>
+        <label title="Tables many others point to (such as users or stores) get a row tag instead of a line.">Hide hub links
+          <select id="hubs"><option value="" selected>Off</option><option value="auto">Auto</option><option value="names">These tables…</option></select>
+        </label>
+        <input id="hubnames" placeholder="users, stores" hidden>
+      </div>
+    </details>
+    <div class="row">
       <label>Export as
         <select id="fmt">
           <option value="svg">SVG picture</option>
@@ -149,6 +164,15 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
 });
 $('#example').onclick = async () => { $('#schema').value = await (await fetch('/api/example')).text(); };
 let jobId = null;
+function idle() {
+  $('#go').disabled = false; $('#go').textContent = 'Lay out';
+  $('#stop').hidden = true; $('#stop').disabled = false; $('#stop').textContent = 'Stop';
+}
+$('#stop').onclick = async () => {
+  if (!jobId) return;
+  $('#stop').disabled = true; $('#stop').textContent = 'Stopping…';
+  await fetch(`/api/jobs/${jobId}/stop`, { method: 'POST' });
+};
 function diagramPicker(names) {
   const sel = $('#which'), keep = sel.value;
   const opts = names.length > 1
@@ -173,7 +197,7 @@ $('#dl').onclick = () => {
 
 let pollTimer = null, drawn = null;
 const PHASES = { starting: 'Starting', main: 'Searching', wider: 'Trying wider layouts', solve: 'Searching',
-                 bound: 'Proving a lower bound', compact: 'Trying narrower layouts', group: 'Solving diagram' };
+                 bound: 'Proving a lower bound', compact: 'Trying narrower layouts', group: 'Solving diagram', stopping: 'Stopping' };
 function render(job, final) {
   result = job;
   const proven = final && job.status === 'OPTIMAL';
@@ -208,11 +232,19 @@ function render(job, final) {
   }
   if (job.diagrams) diagramPicker(job.diagrams);
 }
-$('#hubs').onchange = () => { $('#hubnames').hidden = $('#hubs').value !== 'names'; };
+function countChanged() {
+  const n = [...document.querySelectorAll('#opts select')].filter(sel => {
+    const def = [...sel.options].find(o => o.defaultSelected) || sel.options[0];
+    return sel.value !== def.value;
+  }).length;
+  $('#changed').textContent = n ? `(${n} changed)` : '';
+}
+document.querySelectorAll('#opts select').forEach(sel => sel.addEventListener('change', countChanged));
+$('#hubs').onchange = () => { $('#hubnames').hidden = $('#hubs').value !== 'names'; countChanged(); };
 $('#go').onclick = async () => {
   const body = { text: $('#schema').value, format: $('#format').value || null,
                  k: $('#k').value ? +$('#k').value : null, time_limit: +$('#time').value,
-                 rows: $('#rows').value, split: $('#split').value, max_group: +$('#maxgroup').value,
+                 rows: $('#rows').value, split: $('#split').value, max_group: +$('#maxgroup').value, arrange: $('#arrange').value,
                  hide_hubs: $('#hubs').value === 'names' ? $('#hubnames').value : $('#hubs').value };
   clearTimeout(pollTimer);
   $('#err').hidden = true; $('#go').disabled = true; $('#go').textContent = 'Solving…';
@@ -222,17 +254,17 @@ $('#go').onclick = async () => {
     const r = await post('/api/jobs');
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
     const { id } = await r.json();
-    jobId = id;
+    jobId = id; $('#stop').hidden = false;
     post('/api/baseline').then(x => x.ok ? x.json() : null).then(b => { base = b; });
     const poll = async () => {
       try {
         const job = await (await fetch(`/api/jobs/${id}`)).json();
         if (job.done && job.error) throw new Error(job.error);
         render(job, job.done);
-        if (job.done) { $('#go').disabled = false; $('#go').textContent = 'Lay out'; return; }
+        if (job.done) { idle(); return; }
       } catch (e) {
         $('#err').textContent = e.message; $('#err').hidden = false;
-        $('#go').disabled = false; $('#go').textContent = 'Lay out'; return;
+        idle(); return;
       }
       pollTimer = setTimeout(poll, 1500);
     };
@@ -240,7 +272,7 @@ $('#go').onclick = async () => {
   } catch (e) {
     $('#err').textContent = e.message; $('#err').hidden = false;
     $('#stage').innerHTML = '<div class="empty">No layout.</div>';
-    $('#go').disabled = false; $('#go').textContent = 'Lay out';
+    idle();
   }
 };
 </script>

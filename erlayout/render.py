@@ -73,31 +73,73 @@ def render_svg(schema: Schema, geo: Geometry, title: str | None = None) -> str:
     return "\n".join(out)
 
 
-def stack_offsets(heights: list[float], gap: int = 24) -> tuple[list[float], float]:
-    """Where each of several titled diagrams starts when stacked (its heading
-    sits in the 34 px above), and the total height."""
-    ys, y = [], gap
-    for h in heights:
-        ys.append(y + 34)
-        y += h + 34 + gap
-    return ys, y
+HEADING = 34          # room above each diagram of a split schema for its title
+ARRANGEMENTS = ("grid", "row", "column")
 
 
-def stack_svgs(parts: list[tuple[str, str]], gap: int = 24) -> str:
-    """One SVG holding several titled diagrams one above the other."""
+def cell_width(width: float, title: str) -> float:
+    """A diagram's width, widened so its title does not run into the next one."""
+    return max(width, len(title) * 10.5 + 80)
+
+
+def _shelves(cells, limit, gap):
+    """Left to right, starting a new row when the next diagram would pass `limit`."""
+    pos, x, y, row_h, W = [], 0.0, gap, 0.0, 0.0
+    for w, h in cells:
+        if x > 0 and x + w > limit:
+            x, y, row_h = 0.0, y + row_h + gap, 0.0
+        pos.append((x, y + HEADING))
+        W = max(W, x + w)
+        x += w + gap
+        row_h = max(row_h, h + HEADING)
+    return pos, W, y + row_h + gap
+
+
+def place(sizes: list[tuple[float, float]], titles: list[str], how: str = "grid",
+          gap: int = 24) -> tuple[list[tuple[float, float]], float, float]:
+    """Where each titled diagram starts (its title sits in the HEADING px above),
+    and the total width and height.  "column" stacks the diagrams, "row" puts
+    them side by side, and "grid" fills rows to the width that brings the
+    whole picture closest to a 16:10 screen."""
+    if how not in ARRANGEMENTS:
+        raise ValueError(f"arrange must be one of {', '.join(ARRANGEMENTS)}")
+    cells = [(cell_width(w, t), h) for (w, h), t in zip(sizes, titles)]
+    widest = max([w for w, _ in cells] + [400])
+    if how == "column":
+        pos, W, H = _shelves(cells, 0, gap)
+    elif how == "row":
+        pos, W, H = _shelves(cells, float("inf"), gap)
+    else:
+        area = sum((w + gap) * (h + HEADING + gap) for w, h in cells)
+        best = None
+        for f in [0.5 + 0.1 * i for i in range(16)]:
+            limit = max(widest, f * (area * 1.6) ** 0.5)
+            pos, W, H = _shelves(cells, limit, gap)
+            r = (W / H) / 1.6
+            score = W * H * max(r, 1 / r)      # wasted space, and distance from 16:10
+            if best is None or score < best[0]:
+                best = (score, pos, W, H)
+        _, pos, W, H = best
+    return pos, max(W, 400), H
+
+
+def stack_svgs(parts: list[tuple[str, str]], how: str = "grid", gap: int = 24) -> str:
+    """One SVG holding several titled diagrams, arranged as `place` says."""
     sizes = []
     for _, svg in parts:
         w, h = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg).groups()
         sizes.append((float(w), float(h)))
-    W = max([w for w, _ in sizes] + [400])
-    ys, H = stack_offsets([h for _, h in sizes], gap)
+    titles = [t for t, _ in parts]
+    pos, W, H = place(sizes, titles, how, gap)
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:.0f} {H:.0f}" width="{W:.0f}" '
            f'height="{H:.0f}" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">',
            '<rect width="100%" height="100%" fill="#fafaf8"/>']
-    for (title, svg), y in zip(parts, ys):
-        out.append(f'<text x="40" y="{y - 12:.0f}" font-size="18" font-weight="600" fill="#1d2a3a">'
+    for (title, svg), (w, _), (x, y) in zip(parts, sizes, pos):
+        cw = cell_width(w, title)
+        out.append(f'<text x="{x + 40:.0f}" y="{y - 12:.0f}" font-size="18" font-weight="600" fill="#1d2a3a">'
                    f'{escape(title)}</text>')
-        out.append(f'<line x1="40" x2="{W - 40:.0f}" y1="{y - 2:.0f}" y2="{y - 2:.0f}" stroke="#d9dce1"/>')
-        out.append(svg.replace("<svg ", f'<svg x="0" y="{y:.0f}" ', 1))
+        out.append(f'<line x1="{x + 40:.0f}" x2="{x + cw - 40:.0f}" y1="{y - 2:.0f}" y2="{y - 2:.0f}" '
+                   'stroke="#d9dce1"/>')
+        out.append(svg.replace("<svg ", f'<svg x="{x:.0f}" y="{y:.0f}" ', 1))
     out.append("</svg>")
     return "\n".join(out)

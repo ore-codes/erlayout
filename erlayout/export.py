@@ -25,7 +25,7 @@ from html import escape
 
 from .geometry import CHAR_W, HEADER_H, ROW_H, Geometry
 from .model import Schema
-from .render import PALETTE, stack_offsets
+from .render import PALETTE, cell_width, place
 
 FORMATS = {"svg": ".svg", "drawio": ".drawio", "excalidraw": ".excalidraw", "mermaid": ".mmd"}
 
@@ -57,15 +57,18 @@ def section(schema: Schema, geo: Geometry, svg: str, name: str | None = None, ti
             "tables": tables, "links": links, "svg": svg}
 
 
-def drawing(sections: list[dict]) -> dict:
-    """Sections stacked the way render.stack_svgs stacks their SVGs; `y` is
-    where each section's content starts.  One untitled section is not offset."""
+def drawing(sections: list[dict], arrange: str = "grid") -> dict:
+    """Sections placed the way render.stack_svgs places their SVGs; `x`, `y`
+    is where each section's content starts and `cell_w` how wide its slot is.
+    One untitled section is not moved."""
     if len(sections) == 1 and not sections[0]["title"]:
         s = sections[0]
-        return {"width": s["width"], "height": s["height"], "sections": [{**s, "y": 0.0}]}
-    ys, height = stack_offsets([s["height"] for s in sections])
-    width = max([s["width"] for s in sections] + [400])
-    return {"width": width, "height": height, "sections": [{**s, "y": y} for s, y in zip(sections, ys)]}
+        return {"width": s["width"], "height": s["height"], "arrange": arrange,
+                "sections": [{**s, "x": 0.0, "y": 0.0, "cell_w": s["width"]}]}
+    pos, width, height = place([(s["width"], s["height"]) for s in sections], [s["title"] for s in sections], arrange)
+    return {"width": width, "height": height, "arrange": arrange,
+            "sections": [{**s, "x": x, "y": y, "cell_w": cell_width(s["width"], s["title"])}
+                         for s, (x, y) in zip(sections, pos)]}
 
 
 def pick(d: dict, group: int) -> dict:
@@ -186,13 +189,13 @@ def to_excalidraw(d: dict) -> str:
                   strokeColor=kw.pop("strokeColor", "#2b2f36"), **kw)
 
     for si, s in enumerate(d["sections"]):
-        oy = s["y"]
+        ox, oy = s["x"], s["y"]
         frame_id = f"frame{si}" if s["title"] else None
         start = len(els)
         boxes = {}
         for ti, t in enumerate(s["tables"]):
             gid = f"s{si}t{ti}"
-            x, y, w, h = t["x"], t["y"] + oy, t["w"], t["h"]
+            x, y, w, h = t["x"] + ox, t["y"] + oy, t["w"], t["h"]
             box = el("rectangle", x, y, w, h, backgroundColor="#ffffff", strokeColor="#c9ccd1",
                      groupIds=[gid], roundness={"type": 3})
             boxes[t["name"]] = box
@@ -209,7 +212,7 @@ def to_excalidraw(d: dict) -> str:
             pts = [tuple(ln["path"][0][1])]
             for seg in ln["path"]:
                 pts += [tuple(seg[2])] if seg[0] == "L" else _bezier(*seg[1:])
-            pts = [(px, py + oy) for px, py in pts]
+            pts = [(px + ox, py + oy) for px, py in pts]
             x0, y0 = pts[0]
             rel = [[round(px - x0, 1), round(py - y0, 1)] for px, py in pts]
             xs, ys = [p[0] for p in rel], [p[1] for p in rel]
@@ -225,7 +228,7 @@ def to_excalidraw(d: dict) -> str:
             for e in els[start:]:
                 e["frameId"] = frame_id
             # frames come after their children
-            el("frame", 20, oy - 34, d["width"] - 40, s["height"] + 34, id=frame_id, name=s["title"],
+            el("frame", ox + 20, oy - 34, s["cell_w"] - 40, s["height"] + 34, id=frame_id, name=s["title"],
                strokeColor="#bbb")
     return json.dumps({"type": "excalidraw", "version": 2, "source": "https://github.com/ore-codes/erlayout",
                        "elements": els, "appState": {"viewBackgroundColor": "#fafaf8", "gridSize": None},
@@ -282,7 +285,9 @@ def export(fmt: str, d: dict, schema: Schema) -> str:
     if fmt == "svg":
         from .render import stack_svgs
         ss = d["sections"]
-        return ss[0]["svg"] if len(ss) == 1 and not ss[0]["title"] else stack_svgs([(s["title"], s["svg"]) for s in ss])
+        if len(ss) == 1 and not ss[0]["title"]:
+            return ss[0]["svg"]
+        return stack_svgs([(s["title"], s["svg"]) for s in ss], d.get("arrange", "grid"))
     if fmt == "drawio":
         return to_drawio(d)
     if fmt == "excalidraw":

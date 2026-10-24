@@ -12,11 +12,13 @@ import json
 import logging
 import os
 import sys
+import threading
 from pathlib import Path
 
 from .api import resolve_hubs, solve, solve_split, verify_and_draw, wants_split
 from .export import FORMATS, drawing, export, pick, slug
 from .parse import parse_any
+from .solver import Stopper
 
 
 def main(argv=None) -> int:
@@ -42,6 +44,8 @@ def main(argv=None) -> int:
                     help="with --reorder-rows, allow the primary key to move below other key rows")
     lp.add_argument("--split", choices=["auto", "on", "off"], default="auto",
                     help="draw one diagram per group of related tables (auto: schemas over 40 tables)")
+    lp.add_argument("--arrange", choices=["grid", "row", "column"], default="grid",
+                    help="how the diagrams of a split schema are placed (default: grid)")
     lp.add_argument("--max-group", type=int, default=15, help="most tables in one diagram when splitting")
     lp.add_argument("--hide-hubs", default="",
                     help="'auto' or comma-separated tables whose links become row tags instead of lines (implies --split)")
@@ -110,13 +114,35 @@ def main(argv=None) -> int:
             print(f"{t} proven: every layered drawing has at least {ev['bound']} crossings",
                   file=sys.stderr, flush=True)
 
-    if split:
-        res = solve_split(schema, time_limit=a.time, workers=a.workers, max_group=a.max_group, hubs=hubs,
-                          on_progress=progress, reorder_rows=a.reorder_rows, pin_pk=not a.free_pk)
-    else:
-        res = solve(schema, k=a.k, time_limit=a.time, workers=a.workers, k_max=a.k_max,
-                    certify_time=a.certify_time, on_progress=progress,
-                    reorder_rows=a.reorder_rows, pin_pk=not a.free_pk)
+    stopper, out = Stopper(), {}
+
+    def run():
+        try:
+            if split:
+                out["res"] = solve_split(schema, time_limit=a.time, workers=a.workers, max_group=a.max_group,
+                                         hubs=hubs, arrange=a.arrange, on_progress=progress, stopper=stopper,
+                                         reorder_rows=a.reorder_rows, pin_pk=not a.free_pk)
+            else:
+                out["res"] = solve(schema, k=a.k, time_limit=a.time, workers=a.workers, k_max=a.k_max,
+                                   certify_time=a.certify_time, on_progress=progress, stopper=stopper,
+                                   reorder_rows=a.reorder_rows, pin_pk=not a.free_pk)
+        except BaseException as exc:  # handed to the main thread
+            out["error"] = exc
+
+    # the search runs in a thread so Ctrl-C can stop it and still write the best layout
+    worker = threading.Thread(target=run, daemon=True)
+    worker.start()
+    try:
+        while worker.is_alive():
+            worker.join(0.2)
+    except KeyboardInterrupt:
+        print("stopping: finishing with the best layout so far (Ctrl-C again to quit at once)",
+              file=sys.stderr, flush=True)
+        stopper.stop()
+        worker.join()
+    if "error" in out:
+        raise out["error"]
+    res = out["res"]
     wrote = write(res["drawing"], final=True)
     if a.json:
         with open(a.json, "w", encoding="utf-8") as f:

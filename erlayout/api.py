@@ -24,7 +24,7 @@ from .geometry import assign, geometric_check
 from .heuristic import heuristic
 from .model import Schema
 from .render import render_svg, stack_svgs
-from .solver import ExactSolver, Layout
+from .solver import ExactSolver, Layout, Stopper
 from .split import find_hubs, split_schema
 
 log = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ def _n(c: int, word: str = "crossing") -> str:
 
 
 def guarantee(crossings: int, columns: int, width_proven: int | None, lb: int, cert: dict | None,
-              n_tables: int, finished: bool = True, too_large: bool = False) -> str:
+              n_tables: int, finished: bool = True, too_large: bool = False, stopped: bool = False) -> str:
     if crossings == 0:
         return "Proven optimal: 0 crossings, the best any layout in this model can achieve."
     if cert is not None or (width_proven is not None and width_proven >= n_tables):
@@ -52,7 +52,8 @@ def guarantee(crossings: int, columns: int, width_proven: int | None, lb: int, c
                      f"large for the exact solver in this time budget, so this is the barycenter baseline.")
     else:
         parts.append(f"Best found: {_n(crossings)} in {_n(columns, 'column')}"
-                     + (" (time limit reached)." if finished else " (still searching)."))
+                     + (" (stopped early)." if stopped else " (time limit reached)." if finished
+                        else " (still searching)."))
     if lb > 0:
         parts.append(f"Every layered drawing has at least {lb}, so at most {crossings - lb} more "
                      f"could be removed.")
@@ -81,8 +82,9 @@ def verify_and_render(schema: Schema, lay: Layout) -> tuple[int, dict, str]:
 
 class _Search:
     def __init__(self, schema: Schema, time_limit: float, workers: int, on_progress,
-                 reorder_rows: bool = False, pin_pk: bool = True):
+                 reorder_rows: bool = False, pin_pk: bool = True, stopper: Stopper | None = None):
         self.schema, self.T, self.workers, self.cb = schema, time_limit, workers, on_progress
+        self.stopper = stopper
         self.reorder, self.pin_pk = reorder_rows, pin_pk
         self.n = len(schema.tables)
         self.t0 = time.time()
@@ -97,6 +99,8 @@ class _Search:
         return time.time() - self.t0
 
     def left(self):
+        if self.stopper is not None and self.stopper.stopped:
+            return 0.0
         return self.T - self.elapsed()
 
     def emit(self, kind, **kw):
@@ -123,6 +127,8 @@ class _Search:
 
     def run_width(self, k: int, slice_: float, cap: int | None = None, phase2: bool = True,
                   hint: bool = True):
+        if self.stopper is not None and self.stopper.stopped:
+            return None
         use = None
         with self.lock:
             if hint and self.best is not None and len(self.best.orders) <= k:
@@ -131,7 +137,7 @@ class _Search:
             lay = ExactSolver(self.schema, k, reorder_rows=self.reorder, pin_pk=self.pin_pk).solve(
                 time_limit=slice_, workers=self.workers, hint=use, cap=cap, phase2=phase2,
                 phase2_time=min(0.2 * slice_, 30) if phase2 else None,
-                on_improve=lambda l: self.offer(l, f"{k} columns"))
+                on_improve=lambda l: self.offer(l, f"{k} columns"), stopper=self.stopper)
         except RuntimeError as exc:
             self.history.append({"k": k, "error": str(exc), "seconds": round(slice_, 1)})
             return None
@@ -156,11 +162,13 @@ class _Search:
 
 def solve(schema: Schema, k: int | None = None, time_limit: float = 60.0, workers: int = 8,
           k_max: int | None = None, certify_time: float | None = None, on_progress=None,
-          reorder_rows: bool = False, pin_pk: bool = True) -> dict:
+          reorder_rows: bool = False, pin_pk: bool = True, stopper: Stopper | None = None) -> dict:
     """k given -> that column budget only.  k None -> anytime search (module doc).
     on_progress(event) receives {"kind": "improved"|"width"|"bound"|"phase", "elapsed", ...};
-    "improved" events carry the unverified candidate under "layout"."""
-    S = _Search(schema, time_limit, workers, on_progress, reorder_rows, pin_pk)
+    "improved" events carry the unverified candidate under "layout".
+    stopper.stop() from another thread ends the search; the best layout so far
+    is then verified and returned as usual, with "stopped": True."""
+    S = _Search(schema, time_limit, workers, on_progress, reorder_rows, pin_pk, stopper)
     n = S.n
     base = heuristic(schema) if schema.solver_edges() else None
     if base is None:
@@ -176,7 +184,8 @@ def solve(schema: Schema, k: int | None = None, time_limit: float = 60.0, worker
         budget = S.left() * share if certify_time is None else min(certify_time, S.left())
         if budget >= 2:
             lb = lower_bound(schema, S.best, budget, workers, attempt_cap=max(10.0, 0.15 * time_limit),
-                             should_stop=lambda: S.left() < 1, reorder_rows=reorder_rows, pin_pk=pin_pk)
+                             should_stop=lambda: S.left() < 1, reorder_rows=reorder_rows, pin_pk=pin_pk,
+                             stopper=stopper)
             if lb["bound"] > S.lb["bound"] or lb["complete"]:
                 S.lb = lb
             S.emit("bound", bound=S.lb["bound"], complete=S.lb["complete"])
@@ -219,8 +228,10 @@ def solve(schema: Schema, k: int | None = None, time_limit: float = 60.0, worker
 
     best = S.best
     # every exact run was skipped because its model could not be built in time
-    too_large = bool(S.history) and all("to build" in h.get("error", "") for h in S.history)
+    too_large = bool(S.history) and all("to build" in h.get("error", "") for h in S.history) \
+        and not (stopper and stopper.stopped)
     recount, check, svg, sec = verify_and_draw(schema, best)
+    stopped = bool(stopper and stopper.stopped)
     wp = S.width_proven()
     cert = S.lb if S.lb["bound"] >= best.crossings > 0 else None
     global_opt = best.crossings == 0 or cert is not None or (wp or 0) >= n
@@ -234,7 +245,9 @@ def solve(schema: Schema, k: int | None = None, time_limit: float = 60.0, worker
         "k": wp or len(best.orders),
         "columns_used": len(best.orders),
         "span": best.span,
-        "guarantee": guarantee(best.crossings, len(best.orders), wp, lb, cert, n, too_large=too_large),
+        "guarantee": guarantee(best.crossings, len(best.orders), wp, lb, cert, n, too_large=too_large,
+                               stopped=stopped),
+        "stopped": stopped,
         "certificate": ({"tables": cert["tables"], "forced_crossings": cert["bound"],
                          "edges": cert["edges"], "attempts": cert["attempts"]} if cert else None),
         "lower_bound_search": {k2: S.lb.get(k2) for k2 in ("bound", "tables", "complete", "attempts")},
@@ -310,7 +323,7 @@ def _group_heading(sp_group, res: dict | None, crossings: int) -> str:
     return f"{sp_group.title}  ·  {_n(crossings)}, {state}"
 
 
-def _compose(sp, sections, crossings, results, panel=None) -> tuple[str, dict]:
+def _compose(sp, sections, crossings, results, panel=None, arrange="grid") -> tuple[str, dict]:
     """The stacked SVG and the drawing of a split schema."""
     secs = [dict(sections[i], name=g.title, title=_group_heading(g, results[i], crossings[i]))
             for i, g in enumerate(sp.groups)]
@@ -318,10 +331,10 @@ def _compose(sp, sections, crossings, results, panel=None) -> tuple[str, dict]:
         what = "Hidden hubs and tables" if sp.hubs else "Tables"
         name = f"{what} without drawn links"
         secs.append(dict(panel or _panel(sp.loose)[1], name=name, title=f"{name} ({len(sp.loose)})"))
-    return stack_svgs([(s["title"], s["svg"]) for s in secs]), drawing(secs)
+    return stack_svgs([(s["title"], s["svg"]) for s in secs], arrange), drawing(secs, arrange)
 
 
-def baseline_split(schema: Schema, max_group: int = 15, hubs=None) -> tuple[dict, str]:
+def baseline_split(schema: Schema, max_group: int = 15, hubs=None, arrange: str = "grid") -> tuple[dict, str]:
     sp = split_schema(schema, max_group, resolve_hubs(schema, hubs))
     secs, crossings, geo = [], [], {"crossings": 0, "edges_through_tables": 0, "table_overlaps": 0}
     for g in sp.groups:
@@ -332,15 +345,18 @@ def baseline_split(schema: Schema, max_group: int = 15, hubs=None) -> tuple[dict
         crossings.append(lay.crossings)
         for key, v in geometric_check(g.schema, gg).items():
             geo[key] += v
-    return {"crossings": sum(crossings), "geo": geo}, _compose(sp, secs, crossings, [None] * len(secs))[0]
+    return {"crossings": sum(crossings), "geo": geo}, _compose(sp, secs, crossings, [None] * len(secs), arrange=arrange)[0]
 
 
 def solve_split(schema: Schema, time_limit: float = 60.0, workers: int = 8, max_group: int = 15,
-                hubs=None, on_progress=None, reorder_rows: bool = False, pin_pk: bool = True) -> dict:
+                hubs=None, on_progress=None, reorder_rows: bool = False, pin_pk: bool = True,
+                arrange: str = "grid", stopper: Stopper | None = None) -> dict:
     """Lay out each group of a split schema (split.py) as its own diagram.
     Every group gets a heuristic drawing at once; the groups are then solved
     one after the other, each with a share of the remaining time in proportion
-    to its size.  on_progress receives {"kind": "improved", "svg", "drawing", "crossings",
+    to its size.  arrange places the diagrams: "grid" (default), "row" or
+    "column" (render.place).  stopper.stop() ends the search; groups not
+    searched yet keep their heuristic drawing.  on_progress receives {"kind": "improved", "svg", "drawing", "crossings",
     "elapsed"} with the combined drawing, and {"kind": "phase", ...}."""
     t0 = time.time()
     sp = split_schema(schema, max_group, resolve_hubs(schema, hubs))
@@ -348,11 +364,16 @@ def solve_split(schema: Schema, time_limit: float = 60.0, workers: int = 8, max_
     lock = threading.Lock()
     secs, crossings, results = [None] * G, [0] * G, [None] * G
     panel = _panel(sp.loose)[1] if sp.loose else None
-    base_total = 0
+    base_total, heuristic_results = 0, []
     for i, g in enumerate(sp.groups):
         lay = heuristic(g.schema)
-        crossings[i], _, _, secs[i] = verify_and_draw(g.schema, lay)
+        crossings[i], check, _, secs[i] = verify_and_draw(g.schema, lay)
         base_total += crossings[i]
+        heuristic_results.append({
+            "crossings": crossings[i], "status": "HEURISTIC", "global_optimal": False, "lower_bound": 0,
+            "k": len(lay.orders), "columns_used": len(lay.orders), "seconds": 0.0, "row_order": {},
+            "guarantee": f"Heuristic layout: {_n(crossings[i])}; stopped before this diagram was searched.",
+            "verification": {"model_recount": crossings[i], **check}})
 
     def emit(kind, **kw):
         if on_progress is None:
@@ -364,7 +385,7 @@ def solve_split(schema: Schema, time_limit: float = 60.0, workers: int = 8, max_
 
     def publish():
         with lock:
-            (svg, d), total = _compose(sp, secs, crossings, results, panel), sum(crossings)
+            (svg, d), total = _compose(sp, secs, crossings, results, panel, arrange), sum(crossings)
         emit("improved", svg=svg, drawing=d, crossings=total)
 
     publish()
@@ -372,6 +393,8 @@ def solve_split(schema: Schema, time_limit: float = 60.0, workers: int = 8, max_
     # smallest first: time a small group does not need goes to the bigger ones after it
     order = sorted(range(G), key=lambda i: weight[i])
     for done, i in enumerate(order):
+        if stopper is not None and stopper.stopped:
+            break
         g = sp.groups[i]
         left = time_limit - (time.time() - t0)
         share = max(1.0, left * weight[i] / sum(weight[j] for j in order[done:]))
@@ -391,13 +414,15 @@ def solve_split(schema: Schema, time_limit: float = 60.0, workers: int = 8, max_
             publish()
 
         res = solve(g.schema, time_limit=share, workers=workers, on_progress=progress,
-                    reorder_rows=reorder_rows, pin_pk=pin_pk)
+                    reorder_rows=reorder_rows, pin_pk=pin_pk, stopper=stopper)
         with lock:
             results[i], crossings[i], secs[i] = res, res["crossings"], res["drawing"]["sections"][0]
         publish()
 
+    stopped = bool(stopper and stopper.stopped)
     total = sum(crossings)
-    svg, d = _compose(sp, secs, crossings, results, panel)
+    svg, d = _compose(sp, secs, crossings, results, panel, arrange)
+    results = [r if r is not None else h for r, h in zip(results, heuristic_results)]
     proven = sum(1 for r in results if r["global_optimal"])
     verification = {"model_recount": sum(r["verification"]["model_recount"] for r in results),
                     "crossings": sum(r["verification"]["crossings"] for r in results),
@@ -407,9 +432,11 @@ def solve_split(schema: Schema, time_limit: float = 60.0, workers: int = 8, max_
     hidden = f", {_n(len(sp.hubs), 'hub table')} hidden ({', '.join(sp.hubs)})" if sp.hubs else ""
     summary = (f"Split into {_n(G, 'diagram')} ({drawn} tables) plus {_n(len(sp.loose), 'table')} without drawn links"
                f"{hidden}. Links between diagrams are shown as row tags, not lines. "
-               f"{proven} of {G} diagrams proven optimal; {_n(total)} in total.")
+               f"{proven} of {G} diagrams proven optimal; {_n(total)} in total"
+               + (" (stopped early)." if stopped else "."))
     return {
         "split": True,
+        "stopped": stopped,
         "crossings": total,
         "status": "OPTIMAL" if proven == G else "FEASIBLE",
         "global_optimal": proven == G,
