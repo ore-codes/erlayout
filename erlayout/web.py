@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel
 
-from .api import baseline_svg, solve, verify_and_render
+from .api import baseline_split, baseline_svg, resolve_hubs, solve, solve_split, verify_and_render, wants_split
 from .parse import parse_any
 
 STATIC = Path(__file__).parent / "static"
@@ -53,6 +53,9 @@ class LayoutRequest(BaseModel):
     k: int | None = None
     time_limit: float = 60.0
     rows: str = "keep"          # keep | reorder | reorder-free
+    split: str = "auto"         # auto | on | off: one diagram per group of related tables
+    hide_hubs: str = ""         # "" | auto | comma-separated table names drawn as row tags only
+    max_group: int = 15
 
 
 @app.get("/")
@@ -78,6 +81,21 @@ def _row_opts(req: LayoutRequest) -> dict:
     return {"reorder_rows": req.rows != "keep", "pin_pk": req.rows != "reorder-free"}
 
 
+def _split_opts(req: LayoutRequest, schema) -> dict | None:
+    """Split options when this request is laid out as several diagrams, else None."""
+    if req.split not in ("auto", "on", "off"):
+        raise HTTPException(400, "split must be auto, on or off")
+    if not (4 <= req.max_group <= 40):
+        raise HTTPException(400, "max_group must be between 4 and 40")
+    try:
+        hubs = resolve_hubs(schema, req.hide_hubs.strip())
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if not wants_split(schema, req.split, hubs, req.max_group):
+        return None
+    return {"max_group": req.max_group, "hubs": hubs}
+
+
 def _parse(req: LayoutRequest):
     try:
         schema = parse_any(req.text, req.format)
@@ -96,9 +114,13 @@ def layout(req: LayoutRequest):
         raise HTTPException(400, "k must be between 2 and 40")
     t = _budget(req)
     opts = _row_opts(req)
+    split = _split_opts(req, schema)
     _claim_slot()
     try:
-        res = solve(schema, k=req.k, time_limit=t, workers=WORKERS, **opts)
+        if split:
+            res = solve_split(schema, time_limit=t, workers=WORKERS, **split, **opts)
+        else:
+            res = solve(schema, k=req.k, time_limit=t, workers=WORKERS, **opts)
     except RuntimeError as exc:
         raise HTTPException(422, str(exc)) from exc
     finally:
@@ -111,7 +133,8 @@ def layout(req: LayoutRequest):
 @app.post("/api/baseline")
 def baseline(req: LayoutRequest):
     schema = _parse(req)
-    stats, svg = baseline_svg(schema)
+    split = _split_opts(req, schema)
+    stats, svg = baseline_split(schema, **split) if split else baseline_svg(schema)
     return {"crossings": stats["crossings"], "verification": stats["geo"], "svg": svg}
 
 
@@ -124,7 +147,7 @@ _JOBS_LOCK = threading.Lock()
 MAX_JOBS = 20
 
 
-def _run_job(job_id: str, schema, k, t, opts):
+def _run_job(job_id: str, schema, k, t, opts, split):
     job = JOBS[job_id]
 
     def progress(ev):
@@ -132,7 +155,13 @@ def _run_job(job_id: str, schema, k, t, opts):
             job["elapsed"] = ev["elapsed"]
             if ev["kind"] == "phase":
                 job["phase"] = ev["phase"]
-        if ev["kind"] == "improved":
+                if "group" in ev:
+                    job.update(group=ev["group"], groups=ev["groups"])
+        if ev["kind"] == "improved" and split:   # solve_split sends the drawing, already verified
+            with _JOBS_LOCK:
+                job.update(crossings=ev["crossings"], svg=ev["svg"],
+                           improvements=job["improvements"] + 1, best_at=ev["elapsed"])
+        elif ev["kind"] == "improved":
             try:
                 c, check, svg = verify_and_render(schema, ev["layout"])
             except AssertionError:
@@ -145,7 +174,10 @@ def _run_job(job_id: str, schema, k, t, opts):
                 job["lower_bound"] = ev["bound"]
 
     try:
-        res = solve(schema, k=k, time_limit=t, workers=WORKERS, on_progress=progress, **opts)
+        if split:
+            res = solve_split(schema, time_limit=t, workers=WORKERS, on_progress=progress, **split, **opts)
+        else:
+            res = solve(schema, k=k, time_limit=t, workers=WORKERS, on_progress=progress, **opts)
         res["tables"] = len(schema.tables)
         res["edges"] = len(schema.edges)
         with _JOBS_LOCK:
@@ -165,6 +197,7 @@ def start_job(req: LayoutRequest):
         raise HTTPException(400, "k must be between 2 and 40")
     t = _budget(req)
     opts = _row_opts(req)
+    split = _split_opts(req, schema)
     _claim_slot()
     job_id = uuid.uuid4().hex[:12]
     with _JOBS_LOCK:
@@ -176,9 +209,9 @@ def start_job(req: LayoutRequest):
         JOBS[job_id] = {"id": job_id, "done": False, "phase": "starting", "started": time.time(),
                         "time_limit": t, "elapsed": 0.0, "crossings": None, "svg": None,
                         "improvements": 0, "lower_bound": 0, "tables": len(schema.tables),
-                        "edges": len(schema.edges)}
+                        "edges": len(schema.edges), "split": bool(split)}
     log.info("job %s: %d tables, %d foreign keys, %.0fs budget", job_id, len(schema.tables), len(schema.edges), t)
-    threading.Thread(target=_run_job, args=(job_id, schema, req.k, t, opts), daemon=True).start()
+    threading.Thread(target=_run_job, args=(job_id, schema, req.k, t, opts, split), daemon=True).start()
     return {"id": job_id}
 
 

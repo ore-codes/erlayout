@@ -74,6 +74,18 @@
       </label>
     </div>
     <div class="row">
+      <label title="Draw one diagram per group of related tables. Auto splits schemas over 40 tables.">Split
+        <select id="split"><option value="auto" selected>Auto</option><option value="on">On</option><option value="off">Off</option></select>
+      </label>
+      <label>Group size
+        <select id="maxgroup"><option>10</option><option selected>15</option><option>20</option><option>25</option></select>
+      </label>
+      <label title="Tables many others point to (such as users or stores) get a row tag instead of a line.">Hide hub links
+        <select id="hubs"><option value="" selected>Off</option><option value="auto">Auto</option><option value="names">These tables…</option></select>
+      </label>
+      <input id="hubnames" placeholder="users, stores" hidden>
+    </div>
+    <div class="row">
       <button class="primary" id="go">Lay out</button>
       <button id="dl" disabled>Download SVG</button>
     </div>
@@ -134,13 +146,13 @@ $('#dl').onclick = () => {
 
 let pollTimer = null, drawn = null;
 const PHASES = { starting: 'Starting', main: 'Searching', wider: 'Trying wider layouts', solve: 'Searching',
-                 bound: 'Proving a lower bound', compact: 'Trying narrower layouts' };
+                 bound: 'Proving a lower bound', compact: 'Trying narrower layouts', group: 'Solving diagram' };
 function render(job, final) {
   result = job;
   const proven = final && job.status === 'OPTIMAL';
   $('#badge').className = 'badge ' + (proven ? 'good' : 'warn');
   $('#badge').textContent = final ? job.guarantee
-    : `${PHASES[job.phase] || 'Searching'}… best so far: ${job.crossings ?? '–'} crossings`
+    : `${PHASES[job.phase] || 'Searching'}${job.phase === 'group' ? ` ${job.group} of ${job.groups}` : ''}… best so far: ${job.crossings ?? '–'} crossings`
       + (job.lower_bound ? `, at least ${job.lower_bound} unavoidable` : '')
       + ` (${Math.round(job.elapsed)} of ${Math.round(job.time_limit)} s). The diagram updates as better layouts are found.`;
   const stats = [
@@ -151,7 +163,12 @@ function render(job, final) {
     [final ? `${job.time_to_best} s` : (job.best_at != null ? `${job.best_at} s` : '–'), 'time to best layout']];
   $('#stats').innerHTML = stats.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
   $('#log').textContent = final
-    ? (job.history || []).map(h => `k=${h.k}: ${h.status || h.error}  crossings=${h.crossings ?? '–'}  ${h.seconds ?? ''}s`).join('\n')
+    ? (job.split
+        ? job.groups.map(g => `${g.title}: ${g.tables} tables, ${g.crossings} crossings`
+            + `${g.global_optimal ? ' (optimal)' : ''}  ${g.seconds}s`).join('\n')
+          + (job.unlinked_tables.length ? `\n\nTables without drawn links: ${job.unlinked_tables.join(', ')}` : '')
+          + `\n${job.links_as_tags} links shown as row tags`
+        : (job.history || []).map(h => `k=${h.k}: ${h.status || h.error}  crossings=${h.crossings ?? '–'}  ${h.seconds ?? ''}s`).join('\n'))
       + (Object.keys(job.row_order || {}).length
           ? '\n\nReordered tables:\n' + Object.entries(job.row_order).map(([t, o]) => `  ${t}: ${o.join(', ')}`).join('\n') : '')
       + '\n\nIndependent checks: ' + JSON.stringify(job.verification)
@@ -163,10 +180,12 @@ function render(job, final) {
     $('#dl').disabled = false;
   }
 }
+$('#hubs').onchange = () => { $('#hubnames').hidden = $('#hubs').value !== 'names'; };
 $('#go').onclick = async () => {
   const body = { text: $('#schema').value, format: $('#format').value || null,
                  k: $('#k').value ? +$('#k').value : null, time_limit: +$('#time').value,
-                 rows: $('#rows').value };
+                 rows: $('#rows').value, split: $('#split').value, max_group: +$('#maxgroup').value,
+                 hide_hubs: $('#hubs').value === 'names' ? $('#hubnames').value : $('#hubs').value };
   clearTimeout(pollTimer);
   $('#err').hidden = true; $('#go').disabled = true; $('#go').textContent = 'Solving…';
   result = null; base = null; drawn = null; show();

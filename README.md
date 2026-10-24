@@ -91,6 +91,27 @@ three choices under **Row order**.  The new orders are listed in the output.
 | Reordered, primary key on top | 1 |
 | Reordered freely | 0 |
 
+### Large schemas: one diagram per group (opt-in for small ones)
+
+A schema of hundreds of tables does not fit one readable drawing, and no
+solver proves anything about it in reasonable time.  Above 40 tables erlayout
+therefore splits it (`--split auto`, the default; `on` and `off` force it):
+
+* tables that reference each other a lot are grouped together, at most
+  `--max-group` tables (default 15) per group, and each group is laid out and
+  solved as its own diagram, stacked one above the other in the SVG;
+* a link between two groups is not drawn: its row shows `→ orders (group 3)`
+  in place of the column type;
+* tables with no drawn link go into one compact panel at the end.
+
+`--hide-hubs auto` (or a list such as `--hide-hubs users,stores`) also takes
+the tables that most others point to out of the groups.  Their links become
+row tags (`→ stores (hidden hub)`), which removes the fans of lines such a
+table draws.  `auto` picks tables referenced by at least 10 foreign keys and
+by at least 5% of all of them.  The web interface has the same choices under
+**Split**, **Group size** and **Hide hub links**.  Crossing counts and proofs
+are then per diagram; the summary says how many diagrams were proven optimal.
+
 ### How automatic mode spends its time
 
 The search is *anytime*: a usable diagram is written to `-o` within about a
@@ -132,6 +153,7 @@ barycenter sweeps) in the same drawing model.
 | `erlayout/bruteforce.py` | exhaustive optimiser for tests |
 | `erlayout/geometry.py` | coordinate LP and geometric verifier |
 | `erlayout/render.py` | SVG output |
+| `erlayout/split.py` | grouping of large schemas, hub detection, row tags |
 | `erlayout/api.py`, `cli.py`, `web.py`, `static/` | entry points |
 | `bench/` | benchmark, certificate search and UI test scripts; `bench/out/results.jsonl` holds every run reported in the paper |
 
@@ -152,4 +174,6 @@ no foreign key inside one column, lines leave tables on the side facing their
 target). Exact solving is practical up to a few dozen tables. For larger
 schemas erlayout estimates how long each exact model would take to build and
 skips the ones that do not fit the time budget; a schema of several hundred
-tables gets the barycenter layout within seconds, labelled as such.
+tables gets the barycenter layout within seconds, labelled as such, when
+splitting is turned off.  Splitting gives up the single-drawing guarantee:
+each diagram is optimal on its own, and the links between diagrams are tags.

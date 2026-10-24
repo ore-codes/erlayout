@@ -1,6 +1,7 @@
 """Command line interface.
 
   erlayout layout schema.sql -o diagram.svg [--k 5] [--time 120] [--json result.json]
+  erlayout layout big.sql --split on --hide-hubs auto --max-group 15
   erlayout serve [--port 8000]
 """
 from __future__ import annotations
@@ -11,7 +12,7 @@ import logging
 import os
 import sys
 
-from .api import solve, verify_and_render
+from .api import resolve_hubs, solve, solve_split, verify_and_render, wants_split
 from .parse import parse_any
 
 
@@ -32,6 +33,11 @@ def main(argv=None) -> int:
                     help="let erlayout reorder the rows that carry foreign-key lines inside each table")
     lp.add_argument("--free-pk", action="store_true",
                     help="with --reorder-rows, allow the primary key to move below other key rows")
+    lp.add_argument("--split", choices=["auto", "on", "off"], default="auto",
+                    help="draw one diagram per group of related tables (auto: schemas over 40 tables)")
+    lp.add_argument("--max-group", type=int, default=15, help="most tables in one diagram when splitting")
+    lp.add_argument("--hide-hubs", default="",
+                    help="'auto' or comma-separated tables whose links become row tags instead of lines (implies --split)")
     lp.add_argument("--workers", type=int, default=os.cpu_count() or 4)
     lp.add_argument("--json", help="also write the full result as JSON")
 
@@ -53,9 +59,21 @@ def main(argv=None) -> int:
     schema = parse_any(text, a.format)
     print(f"{len(schema.tables)} tables, {len(schema.edges)} foreign keys", file=sys.stderr)
 
+    try:
+        hubs = resolve_hubs(schema, a.hide_hubs.strip())
+    except ValueError as exc:
+        ap.error(str(exc))
+    split = wants_split(schema, a.split, hubs, a.max_group)
+
     def progress(ev):
         t = f"[{ev['elapsed']:6.1f}s]"
-        if ev["kind"] == "improved":
+        if ev["kind"] == "improved" and split:
+            with open(a.output, "w", encoding="utf-8") as f:
+                f.write(ev["svg"])
+            print(f"{t} {ev['crossings']} crossings in total -> {a.output}", file=sys.stderr, flush=True)
+        elif ev["kind"] == "phase" and "group" in ev:
+            print(f"{t} diagram {ev['group']} of {ev['groups']}", file=sys.stderr, flush=True)
+        elif ev["kind"] == "improved":
             # write every improvement straight away, so a usable file exists early
             try:
                 c, _, svg = verify_and_render(schema, ev["layout"])
@@ -71,9 +89,13 @@ def main(argv=None) -> int:
             print(f"{t} proven: every layered drawing has at least {ev['bound']} crossings",
                   file=sys.stderr, flush=True)
 
-    res = solve(schema, k=a.k, time_limit=a.time, workers=a.workers, k_max=a.k_max,
-                certify_time=a.certify_time, on_progress=progress,
-                reorder_rows=a.reorder_rows, pin_pk=not a.free_pk)
+    if split:
+        res = solve_split(schema, time_limit=a.time, workers=a.workers, max_group=a.max_group, hubs=hubs,
+                          on_progress=progress, reorder_rows=a.reorder_rows, pin_pk=not a.free_pk)
+    else:
+        res = solve(schema, k=a.k, time_limit=a.time, workers=a.workers, k_max=a.k_max,
+                    certify_time=a.certify_time, on_progress=progress,
+                    reorder_rows=a.reorder_rows, pin_pk=not a.free_pk)
     with open(a.output, "w", encoding="utf-8") as f:
         f.write(res["svg"])
     if a.json:
@@ -81,6 +103,9 @@ def main(argv=None) -> int:
             json.dump({k: v for k, v in res.items() if k != "svg"}, f, indent=2)
     print(f"best found after {res['time_to_best']}s of {res['seconds']}s", file=sys.stderr)
     print(res["guarantee"])
+    for g in res.get("groups", []):
+        print(f"  {g['title']}: {g['tables']} tables, {g['crossings']} crossing{'' if g['crossings'] == 1 else 's'}"
+              + (" (optimal)" if g["global_optimal"] else ""))
     for t, order in res.get("row_order", {}).items():
         print(f"  reordered {t}: {', '.join(order)}")
     print(f"baseline (barycenter): {res['baseline']['crossings']} crossings; "

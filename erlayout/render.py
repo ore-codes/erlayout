@@ -1,6 +1,7 @@
 """SVG rendering of a Geometry."""
 from __future__ import annotations
 
+import re
 from html import escape
 
 from .geometry import HEADER_H, ROW_H, Geometry
@@ -69,4 +70,26 @@ def render_svg(schema: Schema, geo: Geometry, title: str | None = None) -> str:
         for p in (p0, p1):
             out.append(f'<circle cx="{p[0]:.1f}" cy="{p[1]:.1f}" r="3" fill="{col}"/>')
     out.append("</g></g></svg>")
+    return "\n".join(out)
+
+
+def stack_svgs(parts: list[tuple[str, str]], gap: int = 24) -> str:
+    """One SVG holding several titled diagrams one above the other."""
+    sizes = []
+    for _, svg in parts:
+        w, h = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg).groups()
+        sizes.append((float(w), float(h)))
+    W = max([w for w, _ in sizes] + [400])
+    H = sum(h + 34 + gap for _, h in sizes) + gap
+    out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:.0f} {H:.0f}" width="{W:.0f}" '
+           f'height="{H:.0f}" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">',
+           '<rect width="100%" height="100%" fill="#fafaf8"/>']
+    y = gap
+    for (title, svg), (_, h) in zip(parts, sizes):
+        out.append(f'<text x="40" y="{y + 22:.0f}" font-size="18" font-weight="600" fill="#1d2a3a">'
+                   f'{escape(title)}</text>')
+        out.append(f'<line x1="40" x2="{W - 40:.0f}" y1="{y + 32:.0f}" y2="{y + 32:.0f}" stroke="#d9dce1"/>')
+        out.append(svg.replace("<svg ", f'<svg x="0" y="{y + 34:.0f}" ', 1))
+        y += h + 34 + gap
+    out.append("</svg>")
     return "\n".join(out)
