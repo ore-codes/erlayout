@@ -1,5 +1,7 @@
 # erlayout
 
+[![CI](https://github.com/ore-codes/erlayout/actions/workflows/ci.yml/badge.svg)](https://github.com/ore-codes/erlayout/actions/workflows/ci.yml)
+
 Lay out an ER diagram (SQL DDL, DBML or JSON) with the **fewest possible line
 crossings, and a proof**. erlayout chooses the columns and the vertical order
 of every table jointly with an exact constraint solver (OR-Tools CP-SAT). It
