@@ -28,9 +28,16 @@ combinatorial recount and a geometric intersection test on the drawn curves.
 ## Install
 
 ```bash
+python -m venv .venv && source .venv/bin/activate
 pip install -e .            # Python 3.10+
 pip install -e ".[test]"    # with test dependencies
 ```
+
+Use a fresh virtual environment rather than a conda base environment. In
+Anaconda, OR-Tools imports pandas, pandas loads pyarrow, and pyarrow brings in
+conda's own `libprotobuf`; OR-Tools then loads its bundled copy and the process
+aborts with `File already exists in database`. If pip reports
+`ResolutionImpossible`, install `ortools` on its own first, then the package.
 
 ## Use
 
