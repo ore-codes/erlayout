@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import sys
 
@@ -39,6 +40,8 @@ def main(argv=None) -> int:
     sp.add_argument("--port", type=int, default=8000)
 
     a = ap.parse_args(argv)
+    logging.basicConfig(level=os.environ.get("ERLAYOUT_LOG_LEVEL", "INFO" if a.cmd == "serve" else "WARNING").upper(),
+                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     if a.cmd == "serve":
         import uvicorn
 

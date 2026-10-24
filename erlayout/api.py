@@ -13,6 +13,7 @@ Automatic mode is an anytime search:
 """
 from __future__ import annotations
 
+import logging
 import threading
 import time
 
@@ -23,6 +24,8 @@ from .heuristic import heuristic
 from .model import Schema
 from .render import render_svg
 from .solver import ExactSolver, Layout
+
+log = logging.getLogger(__name__)
 
 
 def _n(c: int, word: str = "crossing") -> str:
@@ -89,14 +92,15 @@ class _Search:
         if self.cb:
             try:
                 self.cb({"kind": kind, "elapsed": round(self.elapsed(), 1), **kw})
-            except Exception:
-                pass
+            except Exception:  # a broken listener must not stop the search
+                log.exception("progress callback failed on %r event", kind)
 
     def offer(self, lay: Layout, source: str):
         """Accept a candidate if it has fewer crossings, or as many in fewer columns."""
         try:
             c = count_crossings(self.schema.with_row_order(lay.rows), lay.columns, lay.orders)
         except Exception:
+            log.exception("could not recount a candidate layout from %s; ignoring it", source)
             return
         with self.lock:
             b = self.best

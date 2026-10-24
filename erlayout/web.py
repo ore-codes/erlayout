@@ -1,6 +1,7 @@
 """FastAPI web interface: paste a schema, get a certified layout."""
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
@@ -15,6 +16,7 @@ from .api import baseline_svg, solve, verify_and_render
 from .parse import parse_any
 
 STATIC = Path(__file__).parent / "static"
+log = logging.getLogger(__name__)
 app = FastAPI(title="erlayout")
 
 
@@ -29,6 +31,13 @@ class LayoutRequest(BaseModel):
 @app.get("/")
 def index():
     return FileResponse(STATIC / "index.html")
+
+
+@app.get("/health")
+def health():
+    with _JOBS_LOCK:
+        running = sum(1 for j in JOBS.values() if not j["done"])
+    return {"status": "ok", "jobs_running": running}
 
 
 @app.get("/api/example", response_class=PlainTextResponse)
@@ -110,6 +119,7 @@ def _run_job(job_id: str, schema, k, t, opts):
         with _JOBS_LOCK:
             job.update(res, done=True, phase="done")
     except Exception as exc:  # report, never crash the server
+        log.exception("job %s failed", job_id)
         with _JOBS_LOCK:
             job.update(done=True, phase="error", error=str(exc))
 
@@ -132,6 +142,7 @@ def start_job(req: LayoutRequest):
                         "time_limit": t, "elapsed": 0.0, "crossings": None, "svg": None,
                         "improvements": 0, "lower_bound": 0, "tables": len(schema.tables),
                         "edges": len(schema.edges)}
+    log.info("job %s: %d tables, %d foreign keys, %.0fs budget", job_id, len(schema.tables), len(schema.edges), t)
     threading.Thread(target=_run_job, args=(job_id, schema, req.k, t, opts), daemon=True).start()
     return {"id": job_id}
 

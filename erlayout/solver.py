@@ -24,12 +24,15 @@ crossing-optimal drawings.
 """
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass, field
 
 from ortools.sat.python import cp_model
 
 from .model import Schema
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -416,7 +419,7 @@ class ExactSolver:
                                           self.BestObjectiveBound(), time.time() - t0, outer.k,
                                           rows=outer._extract_rows(self)))
                     except Exception:  # a progress report must never break the search
-                        pass
+                        log.exception("could not report an intermediate solution")
             st = s.Solve(m, _CB())
         else:
             st = s.Solve(m)

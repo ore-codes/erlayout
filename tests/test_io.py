@@ -1,6 +1,7 @@
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -101,7 +102,6 @@ def test_cli(tmp_path):
 
 
 def test_web_jobs_report_progress_then_result():
-    import time
     client = TestClient(app)
     r = client.post("/api/jobs", json={"text": SMALL, "time_limit": 20})
     assert r.status_code == 200, r.text
@@ -143,3 +143,38 @@ def test_cli_reorder_flag(tmp_path):
                        capture_output=True, text=True, cwd=ROOT)
     assert r.returncode == 0, r.stderr
     assert "0 crossings" in r.stdout and "reordered" in r.stdout
+
+
+def test_health():
+    r = TestClient(app).get("/health")
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok" and r.json()["jobs_running"] >= 0
+
+
+def test_failing_progress_callback_is_logged_not_fatal(caplog):
+    from erlayout.api import solve
+
+    def broken(ev):
+        raise ValueError("listener bug")
+
+    res = solve(parse_any(SMALL), time_limit=10, workers=2, on_progress=broken)
+    assert res["svg"].startswith("<svg")
+    assert any("progress callback failed" in r.message and r.exc_info for r in caplog.records)
+
+
+def test_failed_job_is_logged(caplog, monkeypatch):
+    import erlayout.web as web
+
+    def boom(*a, **kw):
+        raise RuntimeError("solver exploded")
+
+    monkeypatch.setattr(web, "solve", boom)
+    client = TestClient(app)
+    job_id = client.post("/api/jobs", json={"text": SMALL, "time_limit": 5}).json()["id"]
+    for _ in range(50):
+        job = client.get(f"/api/jobs/{job_id}").json()
+        if job["done"]:
+            break
+        time.sleep(0.1)
+    assert job["phase"] == "error" and "solver exploded" in job["error"]
+    assert any(f"job {job_id} failed" in r.message for r in caplog.records)
