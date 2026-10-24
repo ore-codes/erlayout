@@ -3,3 +3,5 @@ __pycache__/
 .pytest_cache/
 bench/schemas/*[!_][!d][!d][!l].sql
 .venv/
+dist/
+build/

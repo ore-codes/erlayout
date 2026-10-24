@@ -8,9 +8,38 @@ of every table jointly with an exact constraint solver (OR-Tools CP-SAT). It
 returns either a layout proven optimal or the best one found together with a
 proven lower bound.
 
+## Before and after
+
+The Sakila sample database (15 tables, 22 foreign keys), drawn by the usual
+layered method and by erlayout, with every crossing circled in red.  Click an
+image for full size.
+
+<table>
+<tr>
+<th>Standard layered layout<br>(longest path + barycenter)</th>
+<th>erlayout, rows as declared</th>
+<th>erlayout, rows reordered freely</th>
+</tr>
+<tr>
+<td><a href="https://raw.githubusercontent.com/ore-codes/erlayout/master/docs/img/sakila-standard.png"><img src="https://raw.githubusercontent.com/ore-codes/erlayout/master/docs/img/sakila-standard.png" width="280" alt="Sakila, standard layout: 8 crossings"></a></td>
+<td><a href="https://raw.githubusercontent.com/ore-codes/erlayout/master/docs/img/sakila-erlayout-declared.png"><img src="https://raw.githubusercontent.com/ore-codes/erlayout/master/docs/img/sakila-erlayout-declared.png" width="280" alt="Sakila, erlayout with rows as declared: 2 crossings"></a></td>
+<td><a href="https://raw.githubusercontent.com/ore-codes/erlayout/master/docs/img/sakila-erlayout-reordered.png"><img src="https://raw.githubusercontent.com/ore-codes/erlayout/master/docs/img/sakila-erlayout-reordered.png" width="280" alt="Sakila, erlayout with rows reordered: 0 crossings"></a></td>
+</tr>
+<tr>
+<td align="center"><b>8 crossings</b></td>
+<td align="center"><b>2 crossings</b>, proven minimum</td>
+<td align="center"><b>0 crossings</b></td>
+</tr>
+</table>
+
+The images are erlayout's own SVG output for `erlayout/static/example.sql`,
+rendered to PNG by `bench/readme_images.py`, which places the red circles where
+the geometric check finds crossings.  Keeping the primary key on top while reordering gives 1
+crossing, also proven minimal.
+
 The result can be exported to draw.io, Excalidraw or Mermaid, so it can serve
 as a starting layout you keep editing. Coming from dbdiagram.io? See
-[docs/dbdiagram.md](docs/dbdiagram.md).
+[docs/dbdiagram.md](https://github.com/ore-codes/erlayout/blob/master/docs/dbdiagram.md).
 
 Author: Oreoluwa Adeleye.
 
@@ -34,9 +63,18 @@ combinatorial recount and a geometric intersection test on the drawn curves.
 ## Install
 
 ```bash
+pip install erlayout        # Python 3.10+
+```
+
+or, with [pipx](https://pipx.pypa.io) or [uv](https://docs.astral.sh/uv/), as a
+command-line tool in its own environment: `pipx install erlayout` or
+`uv tool install erlayout`.
+
+From a checkout, for development:
+
+```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e .            # Python 3.10+
-pip install -e ".[test]"    # with test dependencies
+pip install -e ".[test]"
 ```
 
 `uv.lock` pins every dependency; `uv sync --locked --extra test` installs
@@ -204,6 +242,13 @@ pytest
 The suite compares the solver with exhaustive enumeration on random small
 schemas, checks certificates against brute force, checks geometry against the
 model, and exercises the parsers, CLI and web API.
+
+## Releasing
+
+Set the new `version` in `pyproject.toml`, commit, then tag and push:
+`git tag v0.1.1 && git push origin v0.1.1`.  The *Publish to PyPI* workflow
+checks that the tag matches the version, runs the tests, builds the sdist and
+wheel and uploads them with PyPI trusted publishing (no token in the repo).
 
 ## Limits
 
