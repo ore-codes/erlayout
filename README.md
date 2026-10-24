@@ -241,13 +241,6 @@ The suite compares the solver with exhaustive enumeration on random small
 schemas, checks certificates against brute force, checks geometry against the
 model, and exercises the parsers, CLI and web API.
 
-## Releasing
-
-Set the new `version` in `pyproject.toml`, commit, then tag and push:
-`git tag v0.1.1 && git push origin v0.1.1`.  The *Publish to PyPI* workflow
-checks that the tag matches the version, runs the tests, builds the sdist and
-wheel and uploads them with PyPI trusted publishing (no token in the repo).
-
 ## Limits
 
 Optimality is relative to the layered model above (curves between columns,
