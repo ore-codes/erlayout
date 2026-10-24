@@ -227,6 +227,10 @@ barycenter sweeps) in the same drawing model.
 | `erlayout/api.py`, `cli.py`, `web.py`, `static/` | entry points |
 | `bench/` | benchmark, certificate search and UI test scripts; `bench/out/results.jsonl` holds every run reported in the paper |
 
+[docs/solver.md](https://github.com/ore-codes/erlayout/blob/master/docs/solver.md)
+explains the drawing model, the CP-SAT encoding and how each guarantee is
+proven.
+
 ## Tests
 
 ```bash

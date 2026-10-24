@@ -43,6 +43,10 @@ in the README for why OR-Tools crashes there).
 
 Run the web interface from your checkout with `erlayout serve`.
 
+Before changing the solver, the certificates or the drawing, read
+[docs/solver.md](docs/solver.md). It explains the model and which file does
+what.
+
 ## Checks
 
 CI runs these on Python 3.10 and 3.13; run them before opening a pull request:
