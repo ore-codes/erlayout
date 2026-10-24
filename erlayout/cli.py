@@ -114,7 +114,7 @@ def main(argv=None) -> int:
             print(f"{t} proven: every layered drawing has at least {ev['bound']} crossings",
                   file=sys.stderr, flush=True)
 
-    stopper, out = Stopper(), {}
+    stopper, out, finished = Stopper(), {}, threading.Event()
 
     def run():
         try:
@@ -128,18 +128,22 @@ def main(argv=None) -> int:
                                    reorder_rows=a.reorder_rows, pin_pk=not a.free_pk)
         except BaseException as exc:  # handed to the main thread
             out["error"] = exc
+        finally:
+            finished.set()
 
-    # the search runs in a thread so Ctrl-C can stop it and still write the best layout
-    worker = threading.Thread(target=run, daemon=True)
-    worker.start()
+    # the search runs in a thread so Ctrl-C can stop it and still write the best layout.
+    # Wait on an Event, not Thread.join: on Python 3.10 a Ctrl-C inside join() can
+    # leave the thread looking finished while it still runs.
+    threading.Thread(target=run, daemon=True).start()
     try:
-        while worker.is_alive():
-            worker.join(0.2)
+        while not finished.wait(0.2):
+            pass
     except KeyboardInterrupt:
         print("stopping: finishing with the best layout so far (Ctrl-C again to quit at once)",
               file=sys.stderr, flush=True)
         stopper.stop()
-        worker.join()
+        while not finished.wait(0.2):
+            pass
     if "error" in out:
         raise out["error"]
     res = out["res"]
