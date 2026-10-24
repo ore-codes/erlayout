@@ -41,8 +41,6 @@ The result can be exported to draw.io, Excalidraw or Mermaid, so it can serve
 as a starting layout you keep editing. Coming from dbdiagram.io? See
 [docs/dbdiagram.md](https://github.com/ore-codes/erlayout/blob/master/docs/dbdiagram.md).
 
-Author: Oreoluwa Adeleye.
-
 ## What "optimal" means here
 
 Tables sit in columns; every foreign-key line attaches to its exact column
