@@ -1,6 +1,6 @@
 """Exact crossing minimisation for row-anchored layered ER drawings.
 
-Drawing model (see paper, Section 3)
+Drawing model (docs/solver.md explains it in full)
 ------------------------------------
 * Tables are placed in K vertical columns; within a column they are stacked
   in a total order.  Every table of a column has the column's width.

@@ -59,6 +59,14 @@ ruff check .
 A run of `pytest` reports some skipped tests. Those are random cases that
 don't apply to the schema they drew, which is expected.
 
+If you change the web interface (`erlayout/static/index.html` or
+`erlayout/web.py`), also run the browser check, which starts its own server:
+
+```bash
+uv run --group ui playwright install chromium     # once
+uv run --group ui python bench/ui_check.py
+```
+
 ## Ground rules for changes
 
 - **Every claim is verified.** A layout reported as optimal must also pass the

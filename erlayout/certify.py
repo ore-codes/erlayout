@@ -1,9 +1,10 @@
-"""Global optimality certificates via sub-schemas (Lemma 3).
+"""Global optimality certificates via sub-schemas (docs/solver.md, section 4).
 
 Restricting any drawing of a schema to a subset of its tables and the
 edges among them gives a drawing of that sub-schema with no more crossings.
 So if some sub-schema S' needs c crossings in every layered drawing (its
-optimum solved at K = |S'|, which covers all column counts by Lemma 2),
+optimum solved at K = |S'|, which covers all column counts, since no
+drawing needs more columns than it has tables),
 the full schema needs at least c at every K.  When c equals the crossings
 of a drawing we already have, that drawing is globally optimal.
 """
@@ -53,7 +54,7 @@ def lower_bound(schema: Schema, lay: Layout, time_limit: float, workers: int = 8
     """Grow a sub-schema from the tables touched by the layout's crossings,
     adding the table with the most foreign keys into the set each step, and
     solve each sub-schema at K = its size.  Every proven optimum is a lower
-    bound for the whole schema (Lemma 3).  Stops when the bound reaches
+    bound for the whole schema.  Stops when the bound reaches
     lay.crossings, when an attempt cannot be proven within attempt_cap
     (larger ones would be harder still), or when time runs out.
     Returns {"bound", "tables", "edges", "complete", "attempts", "seconds"}."""

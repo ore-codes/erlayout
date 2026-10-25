@@ -1,7 +1,6 @@
 __pycache__/
 *.egg-info/
 .pytest_cache/
-bench/schemas/*[!_][!d][!d][!l].sql
 .venv/
 dist/
 build/

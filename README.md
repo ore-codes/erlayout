@@ -205,10 +205,12 @@ diagram as better layouts arrive.
 | --- | --- | --- | --- | --- |
 | Chinook | 11 / 10 | 1 | 0 | proven optimal |
 | Northwind | 14 / 12 | 4 | 0 | proven optimal |
-| Sakila (`examples/sakila.sql`) | 15 / 22 | 8 | 2 | globally optimal, 6-table certificate |
+| Sakila | 15 / 22 | 8 | 2 | globally optimal, 6-table certificate |
 
-The baseline is the classic Sugiyama pipeline (longest-path layering and
-barycenter sweeps) in the same drawing model.
+The schemas are in `examples/`.  The baseline is the classic Sugiyama
+pipeline (longest-path layering and barycenter sweeps) in the same drawing
+model.  `python bench/run_bench.py named 300 chinook northwind sakila`
+reruns these.
 
 ## Layout of the code
 
@@ -225,7 +227,7 @@ barycenter sweeps) in the same drawing model.
 | `erlayout/split.py` | grouping of large schemas, hub detection, row tags |
 | `erlayout/export.py` | draw.io, Excalidraw and Mermaid export |
 | `erlayout/api.py`, `cli.py`, `web.py`, `static/` | entry points |
-| `bench/` | benchmark, certificate search and UI test scripts; `bench/out/results.jsonl` holds every run reported in the paper |
+| `bench/` | benchmark, certificate search, README image and web interface check scripts; `bench/out/results.jsonl` holds every benchmark run |
 
 [docs/solver.md](https://github.com/ore-codes/erlayout/blob/master/docs/solver.md)
 explains the drawing model, the CP-SAT encoding and how each guarantee is

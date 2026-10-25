@@ -1,27 +1,27 @@
-"""Search for a K-independent lower-bound certificate for a schema.
+"""Search a schema for small sub-schemas that force crossings.
 
-Lemma 3: if E1, ..., Er are pairwise disjoint edge sets, every drawing of
-the full schema with any K restricts to drawings of the sub-schemas, so
-cr >= OPT_1 + ... + OPT_r at every K.  Each sub-schema optimum is global
-when solved at K = its table count (Corollary of Lemma 2).
+Every combination of `sizes` tables from the given core that is connected and
+has at least 3 links is solved exactly at K = its table count, which covers
+every column count.  Each one with a proven optimum of 1 or more is a lower
+bound for the whole schema (docs/solver.md, section 4).  Bounds of
+sub-schemas that share no link add up, so the candidates written out can be
+combined into a stronger bound by hand; this script does not combine them.
 
-usage: certificate.py <schema file> <comma-separated tables> <sizes>
+  python bench/certificate.py <schema file> <comma-separated tables> <comma-separated sizes>
+
+Writes bench/out/certificate_candidates.json.
 """
 import itertools
 import json
 import sys
 import time
+from pathlib import Path
 
-from erlayout.model import Schema
+from erlayout.certify import induced
 from erlayout.parse import parse_any
 from erlayout.solver import ExactSolver
 
-
-def induced(s, names):
-    names = set(names)
-    tabs = [t for t in s.tables if t.name in names]
-    edges = [e for e in s.edges if e.src_table in names and e.dst_table in names]
-    return Schema(tabs, edges).validate()
+OUT = Path(__file__).resolve().parent / "out"
 
 
 def connected(sub):
@@ -68,4 +68,4 @@ def search(s, core, sizes, out):
 if __name__ == "__main__":
     s = parse_any(open(sys.argv[1]).read())
     search(s, sys.argv[2].split(","), [int(x) for x in sys.argv[3].split(",")],
-           "bench/out/certificate_candidates.json")
+           OUT / "certificate_candidates.json")

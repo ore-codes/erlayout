@@ -3,15 +3,20 @@
 * Random schemas shaped like real ones: table i references 1-2 earlier
   tables; FK columns sit at random rows.  Exact solve at the baseline's own
   column count (same-width comparison).
-* Public sample schemas (Chinook, Sakila, Northwind): automatic deepening K = 2, 3, ... (global guarantee when it
-  reaches a proven 0 or K = |T|).
+* Public sample schemas in examples/ (Chinook, Northwind, Sakila): the
+  automatic search of erlayout.api.solve, as the CLI runs it.
 
-Writes one JSON line per run to bench/out/results.jsonl.
+  python bench/run_bench.py random|dense [seconds]
+  python bench/run_bench.py named <seconds> chinook northwind sakila
+
+Writes one JSON line per run to bench/out/results.jsonl, and each named
+schema's drawing to bench/out/<name>_optimal.svg.
 """
 import json
 import random
 import sys
 import time
+from pathlib import Path
 
 from erlayout.api import solve
 from erlayout.crossings import count_crossings
@@ -21,7 +26,8 @@ from erlayout.model import Column, Edge, Schema, Table
 from erlayout.parse import parse_sql
 from erlayout.solver import ExactSolver
 
-OUT = "bench/out/results.jsonl"
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "bench" / "out"
 WORKERS = 2
 
 
@@ -48,7 +54,7 @@ def realistic(seed: int, n: int, dense: bool = False) -> Schema:
 
 
 def record(rec):
-    with open(OUT, "a") as f:
+    with open(OUT / "results.jsonl", "a") as f:
         f.write(json.dumps(rec) + "\n")
     print(json.dumps({k: v for k, v in rec.items() if k not in ("layout",)}), flush=True)
 
@@ -73,7 +79,7 @@ def run_random(sizes, seeds, tl, dense=False):
 
 def run_named(names, tl):
     for name in names:
-        s = parse_sql(open(f"bench/schemas/{name}_ddl.sql").read(), "postgres")
+        s = parse_sql((ROOT / "examples" / f"{name}.sql").read_text(), "postgres")
         res = solve(s, k=None, time_limit=tl, workers=WORKERS)
         record(dict(kind="named", name=name, n=len(s.tables), m=len(s.solver_edges()),
                     baseline=res["baseline"]["crossings"], baseline_columns=res["baseline"]["columns"],
@@ -81,7 +87,7 @@ def run_named(names, tl):
                     columns_used=res["columns_used"], lower_bound=res["lower_bound"],
                     seconds=res["seconds"], history=res["history"], guarantee=res["guarantee"],
                     verification=res["verification"], layout=res["layout"]))
-        open(f"bench/out/{name}_optimal.svg", "w").write(res["svg"])
+        (OUT / f"{name}_optimal.svg").write_text(res["svg"])
 
 
 if __name__ == "__main__":

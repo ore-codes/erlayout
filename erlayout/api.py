@@ -7,7 +7,7 @@ Automatic mode is an anytime search:
               reported as soon as it is found;
 2. wider    - a fresh run two columns wider;
 3. bound    - grow sub-schemas around the best drawing's crossings to prove a
-              lower bound that holds for every layered drawing (Lemma 3), each
+              lower bound that holds for every layered drawing (certify.py), each
               attempt capped so one hard proof cannot eat the budget;
 4. compact  - try narrower widths that reach the same crossing count.
 """
@@ -150,7 +150,8 @@ class _Search:
         return lay
 
     def width_proven(self) -> int | None:
-        """Largest proven width whose optimum equals the best count (Lemma 1)."""
+        """Largest proven width whose optimum equals the best count.  An optimum at
+        K columns covers every narrower width too, since columns may stay empty."""
         ws = [w for w, v in self.proven.items() if v == self.best.crossings and w >= len(self.best.orders)]
         return max(ws) if ws else None
 
@@ -207,14 +208,14 @@ def solve(schema: Schema, k: int | None = None, time_limit: float = 60.0, worker
             main -= 1
         S.emit("phase", phase="main", k=main)
         S.run_width(main, S.left() * 0.45, hint=False)
-        # a proven width is often certified globally in seconds (Lemma 3): try that first
+        # a proven width is often certified globally in seconds: try that first
         if main in S.proven:
             bound_phase(0.3)
         # 2. wider: check two more columns with a fresh run
         if not S.done() and main + 2 <= top and S.left() > 5:
             S.emit("phase", phase="wider", k=main + 2)
             S.run_width(main + 2, S.left() * 0.5, hint=False)
-    # 3. bound: capped sub-schema proofs around the best drawing (Lemma 3)
+    # 3. bound: capped sub-schema proofs around the best drawing
     bound_phase(0.8)
     if k is None and base is not None and S.left() > 2:
         # 4. compact: narrower widths with the same number of crossings

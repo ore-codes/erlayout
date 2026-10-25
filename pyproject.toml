@@ -54,6 +54,7 @@ testpaths = ["tests"]
 [dependency-groups]
 dev = ["ruff>=0.17"]
 images = ["resvg-py>=0.5"]
+ui = ["playwright>=1.50"]
 
 [tool.ruff]
 line-length = 140
