@@ -3,19 +3,17 @@
 Lays out the Sakila example three ways (the standard longest-path +
 barycenter layout, erlayout with rows as declared, erlayout with rows
 reordered freely), circles every crossing in red, and renders each SVG to PNG
-with headless Chrome.
+with resvg.
 
-  python bench/readme_images.py [--chrome PATH]
+  uv run --group images python bench/readme_images.py
 """
 from __future__ import annotations
 
 import argparse
-import re
-import subprocess
-import tempfile
 from pathlib import Path
 
 import numpy as np
+import resvg_py
 
 from erlayout.api import solve
 from erlayout.geometry import _flatten, _seg_intersections, assign
@@ -26,7 +24,6 @@ from erlayout.solver import Layout
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "img"
-CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 
 def crossing_points(geo) -> list[tuple[float, float]]:
@@ -57,21 +54,12 @@ def circled(schema, lay: Layout) -> tuple[str, int]:
     return svg, len(pts)
 
 
-def to_png(svg: str, out: Path, chrome: str):
-    w, h = (round(float(v)) for v in re.search(r'viewBox="0 0 (\S+) (\S+)"', svg).groups())
-    with tempfile.TemporaryDirectory() as tmp:
-        (Path(tmp) / "d.svg").write_text(svg)
-        page = Path(tmp) / "d.html"
-        page.write_text(f'<!doctype html><style>html,body{{margin:0;background:#fafaf8}}img{{display:block}}</style>'
-                        f'<img src="d.svg" width="{w}" height="{h}">')
-        subprocess.run([chrome, "--headless=new", "--disable-gpu", "--hide-scrollbars",
-                        "--force-device-scale-factor=1", f"--window-size={w},{h}",
-                        f"--screenshot={out}", page.as_uri()], check=True, capture_output=True)
+def to_png(svg: str, out: Path):
+    out.write_bytes(bytes(resvg_py.svg_to_bytes(svg_string=svg, background="#fafaf8")))
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--chrome", default=CHROME)
     ap.add_argument("--time", type=float, default=120)
     a = ap.parse_args()
     schema = parse_any((ROOT / "examples" / "sakila.sql").read_text())
@@ -85,7 +73,7 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for name, lay in layouts.items():
         svg, n = circled(schema, lay)
-        to_png(svg, OUT / f"{name}.png", a.chrome)
+        to_png(svg, OUT / f"{name}.png")
         print(f"{name}: {n} crossings -> {OUT / name}.png")
 
 

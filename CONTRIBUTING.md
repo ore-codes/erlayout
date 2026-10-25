@@ -75,7 +75,7 @@ don't apply to the schema they drew, which is expected.
 - `erlayout/static/example.sql` (loaded by the web interface) and
   `examples/sakila.sql` are the same file; change both or neither.
 - If you change the README images, regenerate them with
-  `python bench/readme_images.py`.
+  `uv run --group images python bench/readme_images.py`.
 
 Keep pull requests to one change each, with a short description of what it
 fixes and how you checked it. Match the style of the surrounding code.
