@@ -19,3 +19,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # The image's Python version moves with the CI test matrix and OR-Tools
+      # wheel support, so it is changed by hand rather than by Dependabot.
+      - dependency-name: python
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]

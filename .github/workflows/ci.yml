@@ -34,3 +34,18 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: uv sync --locked --extra test
       - run: uv run --no-sync pytest -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t erlayout .
+      - name: Container starts and reports healthy
+        run: |
+          docker run -d --name erlayout -p 8000:8000 erlayout
+          for i in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:8000/health && exit 0
+            sleep 2
+          done
+          docker logs erlayout
+          exit 1
