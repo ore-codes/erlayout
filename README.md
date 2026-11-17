@@ -9,6 +9,11 @@ of every table jointly with an exact constraint solver (OR-Tools CP-SAT). It
 returns either a layout proven optimal or the best one found together with a
 proven lower bound.
 
+**Try it in the browser: [erlayout.app](https://erlayout.app)**. Paste a schema
+and watch the layout improve. The hosted demo runs two solves at a time, each
+capped at 5 minutes; `erlayout serve` runs the same interface on your machine
+without those limits.
+
 ## Before and after
 
 The Sakila sample database (15 tables, 22 foreign keys), drawn by the usual
