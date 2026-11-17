@@ -1,0 +1,27 @@
+name: Weekly watch
+
+# Catches problems nobody pushed: a new release of a dependency breaking the
+# tests, or the public demo going down. A failed scheduled run emails the
+# repository owner.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  latest-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv lock --upgrade
+      - run: uv sync --extra test
+      - run: uv run --no-sync pytest -q
+
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl --fail --silent --show-error --retry 3 --retry-delay 20 --max-time 30 https://erlayout.app/health

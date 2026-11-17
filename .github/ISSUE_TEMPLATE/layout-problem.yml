@@ -1,0 +1,32 @@
+name: Layout problem or bug
+description: A schema that lays out badly, a wrong claim, a crash, or an export that won't open.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What went wrong
+      description: What you expected and what you got.
+    validations:
+      required: true
+  - type: textarea
+    id: schema
+    attributes:
+      label: Schema
+      description: The SQL, DBML or JSON, cut down as far as it still shows the problem. Rename tables if the real ones are private.
+      render: sql
+  - type: textarea
+    id: how
+    attributes:
+      label: How you ran it
+      description: The command, or the settings picked in the web interface (time budget, reorder rows, hubs).
+  - type: input
+    id: guarantee
+    attributes:
+      label: Guarantee line from the output
+      placeholder: "proven optimal / best found, lower bound 2"
+  - type: input
+    id: version
+    attributes:
+      label: erlayout version and Python
+      placeholder: "0.1.0, Python 3.12"
