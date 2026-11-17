@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: How the solver works
+    url: https://github.com/ore-codes/erlayout/blob/master/docs/solver.md
+    about: Read this before proposing a change to the model or the certificates.
