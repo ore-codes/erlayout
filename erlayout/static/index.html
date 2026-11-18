@@ -61,7 +61,7 @@
     <textarea id="schema" spellcheck="false" placeholder="Paste CREATE TABLE statements, DBML, or JSON"></textarea>
     <div class="row">
       <label>Time budget
-        <select id="time"><option value="30">30 s</option><option value="120">2 min</option><option value="300" selected>5 min</option><option value="600">10 min</option><option value="1800">30 min</option></select>
+        <select id="time"><option value="30">30 s</option><option value="60">1 min</option><option value="120">2 min</option><option value="300" selected>5 min</option><option value="600">10 min</option><option value="1800">30 min</option></select>
       </label>
       <button class="primary" id="go">Lay out</button>
       <button id="stop" hidden title="End the search now and keep the best layout found so far">Stop</button>
@@ -162,6 +162,13 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
   document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
   view = b.dataset.v; show();
 });
+// A shared deployment caps the budget and picks its own default: drop what the server would refuse.
+fetch('/health').then(r => r.json()).then(h => {
+  const sel = $('#time');
+  [...sel.options].forEach(o => { if (+o.value > h.max_time) o.remove(); });
+  const start = [...sel.options].map(o => +o.value).filter(v => v <= h.default_time).pop();
+  if (start !== undefined) sel.value = String(start);
+}).catch(() => {});
 $('#example').onclick = async () => { $('#schema').value = await (await fetch('/api/example')).text(); };
 let jobId = null;
 function idle() {
@@ -202,7 +209,7 @@ function render(job, final) {
   result = job;
   const proven = final && job.status === 'OPTIMAL';
   $('#badge').className = 'badge ' + (proven ? 'good' : 'warn');
-  $('#badge').textContent = final ? job.guarantee
+  $('#badge').textContent = final ? job.guarantee + (job.cached ? ' (result of an identical earlier run)' : '')
     : `${PHASES[job.phase] || 'Searching'}${job.phase === 'group' ? ` ${job.group} of ${job.groups}` : ''}… best so far: ${job.crossings ?? '–'} crossings`
       + (job.lower_bound ? `, at least ${job.lower_bound} unavoidable` : '')
       + ` (${Math.round(job.elapsed)} of ${Math.round(job.time_limit)} s). The diagram updates as better layouts are found.`;
@@ -251,7 +258,13 @@ $('#go').onclick = async () => {
   result = null; base = null; drawn = null; jobId = null; diagramPicker([]); show();
   const post = (url) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   try {
-    const r = await post('/api/jobs');
+    let r, tries = 0;
+    for (;;) {          // all slots taken (HTTP 429): wait for one instead of failing at once
+      r = await post('/api/jobs');
+      if (r.status !== 429 || ++tries > 15) break;
+      $('#go').textContent = `Server busy, retrying (${tries}/15)…`;
+      await new Promise(done => setTimeout(done, 4000));
+    }
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
     const { id } = await r.json();
     jobId = id; $('#stop').hidden = false;

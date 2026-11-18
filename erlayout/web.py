@@ -1,12 +1,16 @@
 """FastAPI web interface: paste a schema, get a certified layout."""
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import os
 import re
 import threading
 import time
 import uuid
+from collections import OrderedDict
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -21,13 +25,26 @@ from .solver import Stopper
 
 STATIC = Path(__file__).parent / "static"
 log = logging.getLogger(__name__)
-app = FastAPI(title="erlayout")
 
 # Limits for a shared deployment: solves running at once (more get HTTP 429),
-# the longest time budget a request may ask for, and CP-SAT threads per solve.
+# the longest time budget a request may ask for, CP-SAT threads per solve, the
+# budget the page starts with, and how long a search may go unpolled (its tab
+# closed) before it is stopped to free its slot; 0 never stops one.
 MAX_RUNNING = int(os.environ.get("ERLAYOUT_MAX_RUNNING", "4"))
 MAX_TIME = float(os.environ.get("ERLAYOUT_MAX_TIME", "1800"))
 WORKERS = int(os.environ.get("ERLAYOUT_WORKERS", "0")) or os.cpu_count() or 4
+DEFAULT_TIME = float(os.environ.get("ERLAYOUT_DEFAULT_TIME", "300"))
+IDLE_STOP = float(os.environ.get("ERLAYOUT_IDLE_STOP", "0"))
+
+
+@asynccontextmanager
+async def _lifespan(_app):
+    if IDLE_STOP:
+        threading.Thread(target=_reap_loop, daemon=True).start()
+    yield
+
+
+app = FastAPI(title="erlayout", lifespan=_lifespan)
 _running = 0
 _running_lock = threading.Lock()
 
@@ -71,7 +88,8 @@ def index():
 def health():
     with _JOBS_LOCK:
         running = sum(1 for j in JOBS.values() if not j["done"])
-    return {"status": "ok", "jobs_running": running, "max_running": MAX_RUNNING, "max_time": MAX_TIME}
+    return {"status": "ok", "jobs_running": running, "max_running": MAX_RUNNING, "max_time": MAX_TIME,
+            "default_time": DEFAULT_TIME}
 
 
 @app.get("/api/example", response_class=PlainTextResponse)
@@ -152,13 +170,54 @@ JOBS: dict[str, dict] = {}
 _JOBS_LOCK = threading.Lock()
 MAX_JOBS = 20
 
+# Finished searches that proved their layout optimal, by request, so the same
+# request (usually the built-in example) is answered without a solve or a slot.
+_CACHE: OrderedDict[str, dict] = OrderedDict()
+MAX_CACHE = 50
+_UNSHARED = ("id", "started", "cached", "_stopper", "_last_poll")
+
+
+def _cache_key(req, t: float) -> str:
+    fields = [req.text, req.format, req.k, t, req.rows, req.split, req.hide_hubs, req.max_group, req.arrange]
+    return hashlib.sha256(json.dumps(fields).encode()).hexdigest()
+
+
+def _add_job(job: dict) -> str:
+    with _JOBS_LOCK:
+        if len(JOBS) >= MAX_JOBS:   # forget the oldest finished jobs
+            for old in sorted((j for j in JOBS.values() if j["done"]), key=lambda j: j["started"]):
+                JOBS.pop(old["id"], None)
+                if len(JOBS) < MAX_JOBS:
+                    break
+        JOBS[job["id"]] = job
+    return job["id"]
+
+
+def _reap_idle(now: float | None = None):
+    """Stop searches that nobody polls any more, so a closed tab frees its slot."""
+    if not IDLE_STOP:
+        return
+    now = time.time() if now is None else now
+    with _JOBS_LOCK:
+        idle = [j for j in JOBS.values() if not j["done"] and now - j["_last_poll"] > IDLE_STOP]
+        for j in idle:
+            j["phase"] = "stopping"
+    for j in idle:
+        j["_stopper"].stop()
+
+
+def _reap_loop():
+    while True:
+        time.sleep(max(1.0, IDLE_STOP / 4))
+        _reap_idle()
+
 
 def _names(d) -> list[str]:
     """What the page lists in its diagram picker."""
     return [s["name"] or "Diagram" for s in d["sections"]]
 
 
-def _run_job(job_id: str, schema, k, t, opts, split):
+def _run_job(job_id: str, schema, k, t, opts, split, key):
     job = JOBS[job_id]
 
     def progress(ev):
@@ -199,6 +258,10 @@ def _run_job(job_id: str, schema, k, t, opts, split):
         res["diagrams"] = _names(res["_drawing"])
         with _JOBS_LOCK:
             job.update(res, done=True, phase="done")
+            if res["status"] == "OPTIMAL" and not res.get("stopped"):
+                _CACHE[key] = {name: v for name, v in job.items() if name not in _UNSHARED}
+                while len(_CACHE) > MAX_CACHE:
+                    _CACHE.popitem(last=False)
     except Exception as exc:  # report, never crash the server
         log.exception("job %s failed", job_id)
         with _JOBS_LOCK:
@@ -215,21 +278,24 @@ def start_job(req: LayoutRequest):
     t = _budget(req)
     opts = _row_opts(req)
     split = _split_opts(req, schema)
-    _claim_slot()
-    job_id = uuid.uuid4().hex[:12]
+    key = _cache_key(req, t)
+    job_id, now = uuid.uuid4().hex[:12], time.time()
     with _JOBS_LOCK:
-        if len(JOBS) >= MAX_JOBS:   # forget the oldest finished jobs
-            for old in sorted((j for j in JOBS.values() if j["done"]), key=lambda j: j["started"]):
-                JOBS.pop(old["id"], None)
-                if len(JOBS) < MAX_JOBS:
-                    break
-        JOBS[job_id] = {"id": job_id, "done": False, "phase": "starting", "started": time.time(),
-                        "time_limit": t, "elapsed": 0.0, "crossings": None, "svg": None,
-                        "improvements": 0, "lower_bound": 0, "tables": len(schema.tables),
-                        "edges": len(schema.edges), "split": bool(split), "_schema": schema,
-                        "_stopper": Stopper()}
+        hit = _CACHE.get(key)
+        if hit:
+            _CACHE.move_to_end(key)
+    if hit:
+        log.info("job %s: answered from the cache", job_id)
+        return {"id": _add_job({**hit, "id": job_id, "started": now, "cached": True,
+                                "_stopper": Stopper(), "_last_poll": now})}
+    _claim_slot()
+    _add_job({"id": job_id, "done": False, "phase": "starting", "started": now,
+              "time_limit": t, "elapsed": 0.0, "crossings": None, "svg": None,
+              "improvements": 0, "lower_bound": 0, "tables": len(schema.tables),
+              "edges": len(schema.edges), "split": bool(split), "_schema": schema,
+              "_stopper": Stopper(), "_last_poll": now})
     log.info("job %s: %d tables, %d foreign keys, %.0fs budget", job_id, len(schema.tables), len(schema.edges), t)
-    threading.Thread(target=_run_job, args=(job_id, schema, req.k, t, opts, split), daemon=True).start()
+    threading.Thread(target=_run_job, args=(job_id, schema, req.k, t, opts, split, key), daemon=True).start()
     return {"id": job_id}
 
 
@@ -239,6 +305,7 @@ def get_job(job_id: str):
         job = JOBS.get(job_id)
         if job is None:
             raise HTTPException(404, "no such job")
+        job["_last_poll"] = time.time()
         out = {k: v for k, v in job.items() if not k.startswith("_")}   # drawings are fetched via export
     if not out["done"]:
         out["elapsed"] = round(time.time() - out["started"], 1)
