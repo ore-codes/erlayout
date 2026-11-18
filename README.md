@@ -144,7 +144,14 @@ Environment variables for the web server:
 | `ERLAYOUT_MAX_RUNNING` | solves at once; further requests get HTTP 429 | 4 (2) |
 | `ERLAYOUT_MAX_TIME` | longest time budget, in seconds, a request may use | 1800 (300) |
 | `ERLAYOUT_WORKERS` | CP-SAT threads per solve | all cores (2) |
+| `ERLAYOUT_DEFAULT_TIME` | time budget the page starts with, in seconds | 300 (60) |
+| `ERLAYOUT_IDLE_STOP` | seconds without a poll (tab closed) before a search is stopped; 0 never stops one | 0 (60) |
 | `ERLAYOUT_LOG_LEVEL` | log verbosity | `INFO` |
+
+When all slots are taken, the page waits and retries for about a minute before
+showing "server busy". A request that was already proven optimal (the built-in
+example, for instance) is answered from a cache of the 50 most recent, without a
+solve or a slot.
 
 Peak CPU use is about `MAX_RUNNING × WORKERS` cores; override these in Railway's
 service variables to trade cost against speed.
