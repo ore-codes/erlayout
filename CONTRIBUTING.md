@@ -28,14 +28,14 @@ renamed tables that still show the problem are enough.
 Python 3.10 or newer. With [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv sync --locked --extra test
+uv sync --locked --extra test --extra mcp
 ```
 
 or with pip:
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[test]"
+pip install -e ".[test,mcp]"
 ```
 
 Use a fresh virtual environment, not a conda base environment (see *Install*

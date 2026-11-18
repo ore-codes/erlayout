@@ -78,10 +78,10 @@ From a checkout, for development:
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[test]"
+pip install -e ".[test,mcp]"
 ```
 
-`uv.lock` pins every dependency; `uv sync --locked --extra test` installs
+`uv.lock` pins every dependency; `uv sync --locked --extra test --extra mcp` installs
 exactly those versions (this is what CI and the Docker image use).
 
 Use a fresh virtual environment rather than a conda base environment. In
@@ -126,6 +126,52 @@ In the web interface, **Export as** picks the format and **Diagrams** picks all
 groups in one file, one group, or each group as its own file in a zip. The
 same is available over HTTP as
 `GET /api/jobs/{id}/export/{svg|drawio|excalidraw|mermaid}?group={n|each}`.
+
+### Use from an AI assistant (MCP)
+
+`erlayout mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io)
+server over stdio, so an assistant that supports MCP can lay out a schema
+instead of guessing a drawing. It needs the `mcp` extra:
+
+```bash
+pip install "erlayout[mcp]"
+```
+
+Add it to the assistant's MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "erlayout": {
+      "command": "erlayout",
+      "args": ["mcp", "--output-dir", "."]
+    }
+  }
+}
+```
+
+or run it without installing, with `"command": "uvx"` and
+`"args": ["--from", "erlayout[mcp]", "erlayout", "mcp"]`.
+
+The server has one tool, `layout_er_diagram`:
+
+| Argument | Meaning |
+| --- | --- |
+| `schema` | the schema text: SQL DDL, DBML or JSON |
+| `format` | `svg` (default), `drawio`, `excalidraw` or `mermaid` |
+| `input_format` | `sql`, `dbml` or `json`; detected when omitted |
+| `time_limit` | seconds to search, 30 by default, capped by `--max-time` (120) |
+| `reorder_rows` | also reorder the foreign-key rows inside each table |
+| `save_as` | relative file name to write, ending in the format's extension |
+| `overwrite` | allow replacing an existing file |
+
+The reply gives the crossing count, the baseline's count, whether the layout
+is proven optimal, the guarantee sentence, and the result of the independent
+checks. Diagrams over 20,000 characters (SVG, draw.io and Excalidraw files
+usually are) are not returned in the reply: they must be written with
+`save_as`. The server writes only inside `--output-dir` (the current directory
+by default), never outside it and never over an existing file unless
+`overwrite` is set. It runs one search at a time.
 
 ### Docker and Railway
 
@@ -238,7 +284,7 @@ reruns these.
 | `erlayout/render.py` | SVG output |
 | `erlayout/split.py` | grouping of large schemas, hub detection, row tags |
 | `erlayout/export.py` | draw.io, Excalidraw and Mermaid export |
-| `erlayout/api.py`, `cli.py`, `web.py`, `static/` | entry points |
+| `erlayout/api.py`, `cli.py`, `web.py`, `mcp_server.py`, `static/` | entry points |
 | `bench/` | benchmark, certificate search, README image and web interface check scripts; `bench/out/results.jsonl` holds every benchmark run |
 
 [docs/solver.md](https://github.com/ore-codes/erlayout/blob/master/docs/solver.md)

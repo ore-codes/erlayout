@@ -31,6 +31,9 @@ dependencies = ["ortools>=9.10", "sqlglot>=25", "numpy", "fastapi", "uvicorn", "
 
 [project.optional-dependencies]
 test = ["pytest", "httpx"]
+mcp = [
+    "mcp>=2",
+]
 
 [project.urls]
 Homepage = "https://github.com/ore-codes/erlayout"

@@ -4,6 +4,7 @@
   erlayout layout big.sql --split on --hide-hubs auto --max-group 15
   erlayout layout schema.dbml -o diagram.drawio -o diagram.excalidraw -o diagram.mmd [--each-group]
   erlayout serve [--port 8000]
+  erlayout mcp [--output-dir DIR]        MCP server over stdio for AI assistants (pip install 'erlayout[mcp]')
 """
 from __future__ import annotations
 
@@ -56,9 +57,23 @@ def main(argv=None) -> int:
     sp.add_argument("--host", default="127.0.0.1")
     sp.add_argument("--port", type=int, default=8000)
 
+    mp = sub.add_parser("mcp", help="MCP server over stdio, so an AI assistant can lay out diagrams (needs erlayout[mcp])")
+    mp.add_argument("--output-dir", default=".", help="the only directory the server writes files in (default: current)")
+    mp.add_argument("--max-time", type=float, default=120.0, help="longest time budget a request may use, in seconds")
+    mp.add_argument("--workers", type=int, default=os.cpu_count() or 4)
+
     a = ap.parse_args(argv)
     logging.basicConfig(level=os.environ.get("ERLAYOUT_LOG_LEVEL", "INFO" if a.cmd == "serve" else "WARNING").upper(),
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    if a.cmd == "mcp":
+        try:
+            from .mcp_server import build_server
+        except ModuleNotFoundError as exc:
+            if exc.name != "mcp" and not (exc.name or "").startswith("mcp."):
+                raise
+            ap.error("the MCP server needs the mcp extra: pip install 'erlayout[mcp]'")
+        build_server(Path(a.output_dir), a.max_time, a.workers).run("stdio")   # stdout carries the protocol
+        return 0
     if a.cmd == "serve":
         import uvicorn
 
