@@ -32,7 +32,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python }}
-      - run: uv sync --locked --extra test
+      - run: uv sync --locked --extra test --extra mcp
       - run: uv run --no-sync pytest -q
 
   docker:

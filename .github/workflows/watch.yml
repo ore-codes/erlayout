@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
       - run: uv lock --upgrade
-      - run: uv sync --extra test
+      - run: uv sync --extra test --extra mcp
       - run: uv run --no-sync pytest -q
 
   demo:
