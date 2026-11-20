@@ -194,6 +194,12 @@ Environment variables for the web server:
 | `ERLAYOUT_IDLE_STOP` | seconds without a poll (tab closed) before a search is stopped; 0 never stops one | 0 (60) |
 | `ERLAYOUT_LOG_LEVEL` | log verbosity | `INFO` |
 
+Each search runs in its own process, started from a forkserver that already
+holds the solver. Its memory goes back to the system when the search ends (the
+solver otherwise keeps hundreds of megabytes after a search), and a crash
+inside the solver ends only that search. An image that has run six Sakila
+searches holds about 140 MB.
+
 When all slots are taken, the page waits and retries for about a minute before
 showing "server busy". A request that was already proven optimal (the built-in
 example, for instance) is answered from a cache of the 50 most recent, without a
@@ -284,6 +290,7 @@ reruns these.
 | `erlayout/render.py` | SVG output |
 | `erlayout/split.py` | grouping of large schemas, hub detection, row tags |
 | `erlayout/export.py` | draw.io, Excalidraw and Mermaid export |
+| `erlayout/isolate.py` | runs one search in a child process for the web server |
 | `erlayout/api.py`, `cli.py`, `web.py`, `mcp_server.py`, `static/` | entry points |
 | `bench/` | benchmark, certificate search, README image and web interface check scripts; `bench/out/results.jsonl` holds every benchmark run |
 

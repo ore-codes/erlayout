@@ -111,3 +111,14 @@ def test_health_reports_limits_the_page_uses(monkeypatch):
     monkeypatch.setattr(web, "DEFAULT_TIME", 60.0)
     h = TestClient(web.app).get("/health").json()
     assert h["default_time"] == 60 and h["max_time"] == web.MAX_TIME and h["max_running"] == web.MAX_RUNNING
+
+
+def test_search_that_crashes_is_reported_and_frees_its_slot(monkeypatch):
+    def crash(*a, **k):
+        raise web.SearchCrashed("the search process ended unexpectedly (exit code -9)")
+    monkeypatch.setattr(web, "solve_isolated", crash)
+    c = TestClient(web.app)
+    job = run(c, SCHEMA)
+    assert job["phase"] == "error" and "exit code -9" in job["error"]
+    assert web._running == 0 and not web._CACHE
+    assert c.get("/health").status_code == 200
