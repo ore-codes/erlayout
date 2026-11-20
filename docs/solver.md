@@ -137,6 +137,14 @@ reported as it is found:
 `solver.Stopper` lets another thread interrupt every running CP-SAT search.
 It is used by the web interface's **Stop** button and by Ctrl-C in the CLI.
 
+The web server does not run these searches in its own process. `isolate.solve_isolated`
+starts each one in a child process (from a forkserver that has already imported the
+solver), forwards its events, and returns its result. The child verifies and draws every
+improved layout before sending it, and it ends its search when the parent sets an
+`EventStopper`'s event, which plays the role of `Stopper` across the process boundary. A
+child that dies, or that is still running 90 seconds after its budget, is reported as
+`SearchCrashed`. The CLI and the MCP server still search in-process.
+
 ## 6. The baseline (`heuristic.py`)
 
 The baseline is the classic Sugiyama pipeline in the same drawing model:

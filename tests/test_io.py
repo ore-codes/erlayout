@@ -168,7 +168,7 @@ def test_failed_job_is_logged(caplog, monkeypatch):
     def boom(*a, **kw):
         raise RuntimeError("solver exploded")
 
-    monkeypatch.setattr(web, "solve", boom)
+    monkeypatch.setattr(web, "solve_isolated", boom)
     client = TestClient(app)
     job_id = client.post("/api/jobs", json={"text": SMALL, "time_limit": 5}).json()["id"]
     for _ in range(50):

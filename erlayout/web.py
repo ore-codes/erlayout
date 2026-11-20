@@ -17,8 +17,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 from pydantic import BaseModel
 
-from .api import baseline_split, baseline_svg, resolve_hubs, solve, solve_split, verify_and_draw, wants_split
-from .export import FORMATS, drawing, export, export_each, pick
+from .api import baseline_split, baseline_svg, resolve_hubs, wants_split
+from .export import FORMATS, export, export_each, pick
+from .isolate import EventStopper, SearchCrashed, SolveError, solve_isolated
 from .parse import parse_any
 from .render import ARRANGEMENTS
 from .solver import Stopper
@@ -141,12 +142,11 @@ def layout(req: LayoutRequest):
     split = _split_opts(req, schema)
     _claim_slot()
     try:
-        if split:
-            res = solve_split(schema, time_limit=t, workers=WORKERS, **split, **opts)
-        else:
-            res = solve(schema, k=req.k, time_limit=t, workers=WORKERS, **opts)
-    except RuntimeError as exc:
+        res = solve_isolated(schema, req.k, t, WORKERS, opts, split)
+    except SolveError as exc:
         raise HTTPException(422, str(exc)) from exc
+    except SearchCrashed as exc:
+        raise HTTPException(500, str(exc)) from exc
     finally:
         _release_slot()
     res["tables"] = len(schema.tables)
@@ -220,38 +220,25 @@ def _names(d) -> list[str]:
 def _run_job(job_id: str, schema, k, t, opts, split, key):
     job = JOBS[job_id]
 
-    def progress(ev):
+    def progress(ev):   # an "improved" event arrives from the search process already verified and drawn
         with _JOBS_LOCK:
             job["elapsed"] = ev["elapsed"]
             if ev["kind"] == "phase":
                 job["phase"] = ev["phase"]
                 if "group" in ev:
                     job.update(group=ev["group"], groups=ev["groups"])
-        if ev["kind"] == "improved" and split:   # solve_split sends the drawing, already verified
-            with _JOBS_LOCK:
-                job.update(crossings=ev["crossings"], svg=ev["svg"], _drawing=ev["drawing"],
-                           diagrams=_names(ev["drawing"]),
-                           improvements=job["improvements"] + 1, best_at=ev["elapsed"])
-        elif ev["kind"] == "improved":
-            try:
-                c, check, svg, sec = verify_and_draw(schema, ev["layout"])
-            except AssertionError:
-                return
-            with _JOBS_LOCK:
-                job.update(crossings=c, columns_used=ev["columns"], svg=svg, verification=check,
-                           _drawing=drawing([sec]), diagrams=["Diagram"],
-                           improvements=job["improvements"] + 1, best_at=ev["elapsed"])
-        elif ev["kind"] == "bound":
-            with _JOBS_LOCK:
+            elif ev["kind"] == "improved":
+                found = {"crossings": ev["crossings"], "svg": ev["svg"], "_drawing": ev["drawing"],
+                         "improvements": job["improvements"] + 1, "best_at": ev["elapsed"]}
+                if split:
+                    job.update(found, diagrams=_names(ev["drawing"]))
+                else:
+                    job.update(found, diagrams=["Diagram"], columns_used=ev["columns"], verification=ev["verification"])
+            elif ev["kind"] == "bound":
                 job["lower_bound"] = ev["bound"]
 
     try:
-        stopper = job["_stopper"]
-        if split:
-            res = solve_split(schema, time_limit=t, workers=WORKERS, on_progress=progress, stopper=stopper,
-                              **split, **opts)
-        else:
-            res = solve(schema, k=k, time_limit=t, workers=WORKERS, on_progress=progress, stopper=stopper, **opts)
+        res = solve_isolated(schema, k, t, WORKERS, opts, split, on_progress=progress, stopper=job["_stopper"])
         res["tables"] = len(schema.tables)
         res["edges"] = len(schema.edges)
         res["_drawing"] = res.pop("drawing")
@@ -293,7 +280,7 @@ def start_job(req: LayoutRequest):
               "time_limit": t, "elapsed": 0.0, "crossings": None, "svg": None,
               "improvements": 0, "lower_bound": 0, "tables": len(schema.tables),
               "edges": len(schema.edges), "split": bool(split), "_schema": schema,
-              "_stopper": Stopper(), "_last_poll": now})
+              "_stopper": EventStopper(), "_last_poll": now})
     log.info("job %s: %d tables, %d foreign keys, %.0fs budget", job_id, len(schema.tables), len(schema.edges), t)
     threading.Thread(target=_run_job, args=(job_id, schema, req.k, t, opts, split, key), daemon=True).start()
     return {"id": job_id}
