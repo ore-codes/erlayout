@@ -1,7 +1,9 @@
 import random
+import sys
 import threading
 import time
 
+import pytest
 from fastapi.testclient import TestClient
 from test_solver import random_schema
 from test_split import ddl, modules
@@ -53,10 +55,10 @@ def test_web_stop():
     assert client.post("/api/jobs/nope/stop").status_code == 404
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="sends SIGINT to a child process, which Windows cannot do")
 def test_cli_ctrl_c_writes_the_best_layout(tmp_path):
     import signal
     import subprocess
-    import sys
 
     from test_split import ddl as to_sql
     src, out = tmp_path / "s.sql", tmp_path / "s.drawio"
