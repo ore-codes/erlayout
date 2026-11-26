@@ -108,11 +108,16 @@ def solve_isolated(schema, k, time_limit, workers, opts, split, on_progress=None
     result = None
     try:
         while True:
-            if recv.poll(0.25):
-                try:
-                    kind, payload = recv.recv()
-                except EOFError:
+            alive = proc.is_alive()   # asked before reading: all a dead child sent is already in the pipe
+            try:
+                message = recv.recv() if recv.poll(0.25) else None
+            except (EOFError, BrokenPipeError):   # the child's end is closed; Windows raises the latter from poll()
+                break
+            if message is None:
+                if not alive:
                     break
+            else:
+                kind, payload = message
                 if kind == "event":
                     if on_progress:
                         on_progress(payload)
@@ -121,8 +126,6 @@ def solve_isolated(schema, k, time_limit, workers, opts, split, on_progress=None
                 elif kind == "error":
                     solver_error, message = payload
                     raise (SolveError if solver_error else SearchCrashed)(message)
-            elif not proc.is_alive() and not recv.poll(0):
-                break
             if time.monotonic() > deadline:
                 proc.kill()
                 raise SearchCrashed("the search did not stop within its time budget and was ended")
